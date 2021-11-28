@@ -1,0 +1,17 @@
+Lorenz Attractor HW2
+
+Sean Masucci
+CSCI4229/5229 Fall 2021
+
+
+Provides a visualization of the Lorenz attractor and allows the user to change some of the parameters to manipulate how it looks.
+
+
+Key bindings
+  1      Changes mode to allow the sigma parameter to be changed
+  2      Changes mode to allow the beta parameter to be changed
+  3      Changes mode to allow the rho parameter to be changed
+  +/-    Increase/decrease depending on parameter selected
+  arrows Change view angle
+  0      Reset view angle and parameters
+  ESC    Exit

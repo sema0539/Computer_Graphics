@@ -1,0 +1,31 @@
+HW6: Lighting and Textures
+
+Sean Masucci
+CSCI4229/5229 Fall 2021
+
+Demonstrates using lighting and textures using my scene made from HW4. I reused code from ex13, ex14, and ex15 to help make the lighting and amp the textures
+for the Scene and reused code from ex9 for the projections. Also I used some of the functions from CSCIx229.h.
+
+Approximate time it took to complete the assignment: ~5 hours
+
+Key bindings
+  x          Toggle axes
+  m/M        Changes mode to for different projections
+  arrows     Change view angle, also changes the direction you are looking when in FirstPerson mode
+  PgUp/PgDn  changes fov when in perspective
+  +/-        Zoom in and out when not in FirstPerson mode
+  []         Lower/rise light
+  w          When in FirstPerson mode this moves the camera forward
+  s          When in FirstPerson mode this moves the camera backward
+  l          Toggles lighting
+  y          Toggles light movement
+  a/A        Decrease/increase ambient light
+  d/D        Decrease/increase diffuse light
+  s/S        Decrease/increase specular light
+  e/E        Decrease/increase emitted light
+  n/N        Decrease/increase shininess
+  F1         toggles smooth/flat shading
+  F3         Toggle light distance (1/5)
+  F8         Change ball increment
+  0          Reset view angle
+  ESC        Exit

@@ -1,0 +1,18 @@
+HW3: Scene in 3D
+
+Sean Masucci
+CSCI4229/5229 Fall 2021
+
+
+Here is my drawing of a 3d scene of two instances of a tree. I used code from example 8 to make the spheres and cube but the object that I made
+was an attempt at a simple tree trunk shape. I originally started with a hexagonal prism that got smaller as it got taller, but I then
+added a point where it starts to "bend" slightly and go in a different direction.
+
+
+Key bindings
+  a          Toggle axes
+  m/M        Changes mode to view the scene or object that I created
+  arrows     Change view angle
+  +/-        Zoom in and out
+  0          Reset view angle
+  ESC        Exit
