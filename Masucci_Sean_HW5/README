@@ -1,0 +1,33 @@
+HW5: Lighting
+
+Sean Masucci
+CSCI4229/5229 Fall 2021
+
+Demonstrates basic lighting using my scene made from HW4. I reused code from ex13 to help make the lighting
+for the Scene and reused code from ex9 for the projections.
+
+Approximate time it took to complete the assignment: ~8 hours
+
+Key bindings
+  x          Toggle axes
+  m/M        Changes mode to for different projections
+  arrows     Change view angle, also changes the direction you are looking when in FirstPerson mode
+  PgUp/PgDn  changes fov when in perspective
+  +/-        Zoom in and out when not in FirstPerson mode
+  []         Lower/rise light
+  w          When in FirstPerson mode this moves the camera forward
+  s          When in FirstPerson mode this moves the camera backward
+  l          Toggles lighting
+  y          Toggles light movement
+  a/A        Decrease/increase ambient light
+  d/D        Decrease/increase diffuse light
+  s/S        Decrease/increase specular light
+  e/E        Decrease/increase emitted light
+  n/N        Decrease/increase shininess
+  F1         toggles smooth/flat shading
+  F2         Toggle local viewer mode
+  F3         Toggle light distance (1/5)
+  F8         Change ball increment
+  F9         Invert bottom normal
+  0          Reset view angle
+  ESC        Exit

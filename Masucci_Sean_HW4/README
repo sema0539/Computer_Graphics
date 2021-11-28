@@ -1,0 +1,21 @@
+HW4: Projections
+
+Sean Masucci
+CSCI4229/5229 Fall 2021
+
+
+Here is a 3d scene that has modes for a orthogonal and perspective projections. Also there is a mode with a first person
+camera that uses the perspective projection. Most code is reused from HW3 and ex9, and I added code to the projection and display functions to
+use the new perspective projection. Additionally, I changed some of the controls to work with the new modes
+
+Approximate time it took to complete the assignment: ~4 hours
+
+Key bindings
+  x          Toggle axes
+  m/M        Changes mode to for different projections
+  arrows     Change view angle, also changes the direction you are looking when in FirstPerson mode
+  +/-        Zoom in and out when not in FirstPerson mode
+  w          When in FirstPerson mode this moves the camera forward
+  s          When in FirstPerson mode this moves the camera backward
+  0          Reset view angle
+  ESC        Exit
