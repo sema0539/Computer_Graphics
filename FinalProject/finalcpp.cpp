@@ -5,11 +5,14 @@
 #include <random>
 #include "noiseClass.h"
 
+// x is now y when looking at terrain and z is x
+
 
 int axes=1;       //  Display axes
 int th=0;         //  Azimuth of view angle
-int mode=0;
+int mode=1;
 int wireframe = 0;
+int object = 0;
 int move=1;       //  Move light
 int ph=15;        //  Elevation of view angle
 int fov=60;       //  Field of view (for perspective)
@@ -31,6 +34,8 @@ int shininess =   0;  // Shininess (power of two)
 float shiny   =   1;  // Shininess (value)
 int zh        =  90;  // Light azimuth
 float ylight  =   0;  // Elevation of light
+double alpha = 0.75;
+int aone = 1;
 
 // tracks the postion of the camera
 double fpx = 0;
@@ -41,12 +46,12 @@ double fpz = 0;
 double Cx = 0;
 double Cz = 0;
 
-int row = 32;
-int col = 32;
+int row = 64;
+int col = 64;
 
 const char* text[] = {"???"};
 
-struct hmapStruct{float hmap[32][32];} t;
+struct hmapStruct{float hmap[64][64];} t;
 
 typedef struct{float x,y,z;}vtx;
 
@@ -94,8 +99,6 @@ static void Project()
  glLoadIdentity();
 }
 
-vtx vert[3];
-
 //helper function for getting surface normal of a polygon bascially from ex13
 static void get_surface_normal(vtx p1, vtx p2, vtx p3){
     //  Planar vector 0
@@ -118,6 +121,7 @@ static void terrain(double x,double y,double z,
                   double dx,double dy,double dz,
                   double th)
 {
+   vtx vert[3];
    //  Set specular color to white
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -134,9 +138,8 @@ static void terrain(double x,double y,double z,
    for(int i=0; i<row;i++){
      glBegin(GL_TRIANGLE_STRIP);
      glColor3f(0.45,0.35,0.25);
-     for(int j=0; j<col; j++){
+     for(int j=0; j<col-1; j++){
        // !! work on Lighting !!
-       //get_surface_normal(vert[0],vert[1],vert[2]);
        // saves the vertices of the terrain to calulate the norams
        vert[0].x = j;
        vert[0].y = i;
@@ -149,14 +152,55 @@ static void terrain(double x,double y,double z,
        vert[2].z = t.hmap[j+1][i];
        //sets the vertices of the terrain
        get_surface_normal(vert[0],vert[1],vert[2]);
-       glVertex3d(j,i,t.hmap[j][i]);
-       glVertex3d(j,i+1,t.hmap[j][i+1]);
+       glVertex3d(i,t.hmap[j][i],j);
+       glVertex3d(i+1,t.hmap[j][i+1],j);
 
      }
      glEnd();
    }
    //  End
 
+   //  Undo transofrmations
+   glPopMatrix();
+}
+
+// Make clear and add fog
+static void water(double x,double y,double z,
+                  double dx,double dy,double dz,
+                  double th)
+{
+   //  Set specular color to white
+   float white[] = {1,1,1,1};
+   float black[] = {0,0,0,1};
+   glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+   //  Save transformation
+   glPushMatrix();
+   //  Offset
+   glTranslated(x,y,z);
+   glRotated(th,1,0,0);
+   glScaled(dx,dy,dz);
+
+   glEnable(GL_BLEND);
+   glColor4f(0.1,0.15,0.45,alpha);
+   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+   glDepthMask(0);
+
+   for(int i=0; i<row;i++){
+     glBegin(GL_TRIANGLE_STRIP);
+     for(int j=0; j<col-1; j++){
+       //sets the vertices of the terrain
+       glVertex3d(i,0,j);
+       glVertex3d(i+1,0,j);
+
+     }
+     glEnd();
+   }
+   //  End
+   glDisable(GL_BLEND);
+   glDepthMask(1);
+   glDisable(GL_TEXTURE_2D);
    //  Undo transofrmations
    glPopMatrix();
 }
@@ -458,11 +502,16 @@ static void mushroom(double x,double y,double z,double r)
 float angle1 = 315;
 float angle2 = 45;
 
-void branch(float len, float stop, float sbtm){
+void branch(float len, float stop, float sbtm, double x, double y, double z){
+  //root brach
+  glPushMatrix();
+  glTranslated(x,y,z);
   treeBranch(0,0,0, stop,sbtm, 1,len);
-  if(len>0.33){
+  glPopMatrix();
+  // braches from root
+  if(len>0.15){
     glPushMatrix();
-    glTranslated(0,len*2,0);
+    glTranslated(x,len*2+y,z);
     if(angle1 > 30){
       glRotated(angle1,1,1,0);
       glRotated(angle1,0,1,0);
@@ -470,14 +519,16 @@ void branch(float len, float stop, float sbtm){
       glRotated(angle1,0,1,1);
       glRotated(angle1,0,1,0);
     }
-    branch(len*0.67, stop*0.75, sbtm*0.75);
-    if(len*0.67<0.33){
-      sphere(0,0,0, 1, 0.05, 0.45, 0.15);
+    //braches one way
+    branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
+    // draws a sphere for the leaves at the end of the braches
+    if(len*0.67<0.15){
+      sphere(0,0,0, 0.9, 0.05, 0.45, 0.15);
     }
     glPopMatrix();
 
     glPushMatrix();
-    glTranslated(0,len*2,0);
+    glTranslated(x,len*2+y,z);
     if(angle2 < -22){
       glRotated(angle2,1,1,1);
       glRotated(angle1,0,1,0);
@@ -485,9 +536,11 @@ void branch(float len, float stop, float sbtm){
       glRotated(angle2,1,0,1);
       glRotated(angle1,0,1,0);
     }
-    branch(len*0.67, stop*0.75, sbtm*0.75);
-    if(len*0.67<0.33){
-      sphere(0,0,0, 0.5, 0.05, 0.45, 0.15);
+    //braches the other way
+    branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
+    // draws a sphere for the leaves at the end of the braches
+    if(len*0.67<0.15){
+      sphere(0,0,0, 0.75, 0.05, 0.45, 0.15);
     }
     glPopMatrix();
   }
@@ -498,17 +551,17 @@ float value[2];
 
 float *findMinMax(float *arr){
   float min = 10;
-  float max = -10;
+  float max = 0;
   int width = perlin.getOutputWSize();
   int height = perlin.getOutputHSize();
   for (int i = 0; i<width*height; i++)
     {
-      if (map(arr[i],0,1,-10,10) < min) {
-          min = map(arr[i],0,1,-10,10);
+      if (map(arr[i],0,1,0,10) < min) {
+          min = map(arr[i],0,1,0,10);
       }
 
-      if (map(arr[i],0,1,-10,10) > max) {
-          max = map(arr[i],0,1,-10,10);
+      if (map(arr[i],0,1,0,10) > max) {
+          max = map(arr[i],0,1,0,10);
       }
     }
     value[0] = min;
@@ -516,15 +569,16 @@ float *findMinMax(float *arr){
     return value;
 }
 
+int numTrees = 50;
 Point treePos[50];
 
 void myInit(){
   Point minT,maxT,outT;
-  minT.x = -15;
-  minT.y = -15;
-  maxT.x = 15;
-  maxT.y = 15;
-  for(int i = 0;i < 50;i++){
+  minT.x = 0;
+  minT.y = 0;
+  maxT.x = 60;
+  maxT.y = 60;
+  for(int i = 0;i < numTrees;i++){
     outT = randomPoint(minT, maxT);
     treePos[i].x = outT.x;
     treePos[i].y = outT.y;
@@ -540,10 +594,11 @@ void display()
   for(int i=0; i<row;i++){
     for(int j=0; j<col; j++){
        // saves the values for the hight of the terrian using Perlin noise
-       t.hmap[j][i] = 0;//map(fPerlinNoise2D[h],0,1,-10,10);
+       t.hmap[j][i] = map(fPerlinNoise2D[h],0,1,0,10);
        h++;
     }
   }
+  //std::cout<<t.hmap[31][31]<<std::endl;
   //gets the min and max x and z cordents
 
   // gets the minimum and max height of terrain
@@ -560,17 +615,25 @@ void display()
   }
   glLoadIdentity();
   //  Set perspective
-  if(mode==0){
+  if(mode==0 && object!=0){
      glRotatef(ph,1,0,0);
      glRotatef(th,0,1,0);
   }
-  else {
+  else if(mode==1 && object!=0){
      //  Eye position
      double Ex = -2*dim*Sin(th)*Cos(ph);
      double Ey = +2*dim        *Sin(ph);
      double Ez = +2*dim*Cos(th)*Cos(ph);
 
-     gluLookAt(Ex,Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0);
+     gluLookAt(Ex,Ey,Ez , Ox,Oy,Oz , 0,1,0);
+  }
+  else{
+     //  Eye position
+     double Ex = -2*dim*Sin(th)*Cos(ph);
+     double Ey = +2*dim        *Sin(ph);
+     double Ez = +2*dim*Cos(th)*Cos(ph);
+
+     gluLookAt(Ex,minMax[1]+Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0);
   }
   //  Flat or smooth shading
   glShadeModel(smooth ? GL_SMOOTH : GL_FLAT);
@@ -607,15 +670,26 @@ void display()
   else
      glDisable(GL_LIGHTING);
 
-  terrain((col/2)*-1,0,row/2 , 1,1,1 , 270);
-  for(int i = 0;i < 50;i++){
-    treeBranch(treePos[i].x,t.hmap[treePos[i].y][treePos[i].x],treePos[i].y, 0.25,0.45, 1,3);
+  if(object == 1){
+    treeBranch(0,0,0, 0.25,0.45, 1,1);
   }
-  //std::cout<<t.hmap[0][0]<<std::endl;
-  //branch(1.5, 0.25, 0.45);
-  //cylinder(0,0,0,  1,1,1,  0.15,3,0,15);
-  //treeBranch(0,0,0, 0.25,0.45, 1,3);
-  //mushroom(0,0,0,1);
+  else if(object == 2){
+    mushroom(0,0,0,1);
+  }
+  else if(object == 3) {
+    branch(1, 0.25, 0.45 ,0,0,0);
+  }
+  else {
+    float waterLevel = minMax[1]/2;
+    terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0);
+    water((col/2)*-1,waterLevel,row/2*-1, 1,1,1 , 0);
+    for(int i = 0;i < numTrees;i++){
+      if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5) //only places trees if they are high enough above the waterlevel
+        //treeBranch((col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x, 0.25,0.45, 1,1);
+        branch(1, 0.25, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
+    }
+  }
+
 
   glDisable(GL_LIGHTING);
   //  Draw axes - no lighting from here on
@@ -688,33 +762,48 @@ void key(unsigned char ch,int x,int y)
    //  Exit on ESC
    if (ch == 27)
       exit(0);
+   // zooms in
    else if (ch == '+')
        dim -= 0.1;
    //zooms out
    else if (ch == '-')
        dim += 0.1;
-   //  Switch display mode
+   //  changes fov
    else if (ch == 'f')
        fov = 0;
    else if (ch == 'F')
        fov = 60;
+   // changes the tree
    else if (ch == 'r'){
      angle1 = 15+(rand()%75);
      angle2 = -(15+(rand()%45));
    }
+   // toggles light
    else if(ch == 'l' || ch == 'L')
      light = 1-light;
+   //changes mode between perspective and orthogonal
    else if(ch=='m' || ch == 'M')
-     mode = (mode+1)%3;
+     mode = (mode+1)%2;
+   //shows the differnt objects made and the scene
+   else if(ch == '0')
+     object = 0;
+   else if(ch == '1')
+     object = 1;
+   else if(ch == '2')
+     object = 2;
+   else if(ch == '3')
+     object = 3;
+   //toggles the wireframe
    else if(ch == 'o' ||ch == 'o')
      wireframe = (wireframe+1)%2;
-   else if(ch == '1'){
+   // c, d, and x control different aspects of terrian along with regenerating terrian
+   else if(ch == 'c'){
      perlin.changeOctaves();
    }
-   else if(ch == '2'){
+   else if(ch == 'd'){
      perlin.changeScalingBias();
    }
-   else if(ch == '3'){
+   else if(ch == 'x'){
      perlin.resetOctaves();
      perlin.randSeed();
    }

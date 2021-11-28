@@ -7,12 +7,12 @@
 class noiseClass{
   private:
 
-    int nOutputWidth = 32;
-	  int nOutputHeight = 32;
+    int nOutputWidth = 64;
+	  int nOutputHeight = 64;
   	float *fNoiseSeed2D = nullptr; // hold the seed for the terrian generatin
   	float *fPerlinNoise2D = nullptr; //has the output values for the height of points
     //number of vertices
-  	int nOutputSize = 1024;
+  	int nOutputSize = 4096;
 
   	int nOctaveCount = 1;
   	float fScalingBias = 2.0f; // effects how smooth the points will look
