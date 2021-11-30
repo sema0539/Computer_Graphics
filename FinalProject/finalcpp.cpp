@@ -1,12 +1,29 @@
+// Key bindings
+//   Esc           Exits the program.
+//   c             Increments the octaves by one for the terrain or rocks depending on what object is being viewed.
+//   d             Increments the scaling bias which effects how independent each point is.
+//   x             Creates a new seed for the terrain or rocks and resets the octaves.
+//   r             Changes the trees.
+//   f/F           changes the fov.
+//   l/L           Toggles the light
+//   m/M           Changes between perspective and orthogonal projections
+//   w/W           Toggles the wireframe.
+//   0             Shows the main scene.
+//   1             Shows the simple tree branch.
+//   2             Shows the mushroom.
+//   3             Shows just the terrain.
+//   4             Shows the rocks.
+//   5             Shows the tree.
+//   6             Shows the flower
+//   +/-           increases/decreases the dim.
+//   arrow keys    Control the camera.
+
 #include "CSCIx229.h"
 
 #include <iostream>
 #include <string>
 #include <random>
 #include "noiseClass.h"
-
-// x is now y when looking at terrain and z is x
-
 
 int axes=1;       //  Display axes
 int th=0;         //  Azimuth of view angle
@@ -52,10 +69,12 @@ int col = 64;
 const char* text[] = {"???"};
 
 struct hmapStruct{float hmap[64][64];} t;
-
+struct rHmapStruct{float hmap[25][14];} rockP;
+//vertex struct
 typedef struct{float x,y,z;}vtx;
-
-noiseClass perlin;
+//for generating noise to randomlly make terrian and rocks
+noiseClass perlin(row,col);
+noiseClass rocks(13,25);
 
 std::default_random_engine generator;
 
@@ -63,7 +82,7 @@ typedef struct{
   int x;
   int y;
 }Point;
-
+//uniformally generates points for placing objects within an area
 Point randomPoint(Point min, Point max)
 {
     static std::mt19937 gen;
@@ -72,12 +91,50 @@ Point randomPoint(Point min, Point max)
 
     return Point{distribX(gen), distribY(gen)};
 }
-
+//helps to map the noise function to numbers that are not between 0 and 1
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+float *findMinMax(float *arr){
+  float *value;
+  value = new float[2];
+  float min = 10;
+  float max = 0;
+  int width = perlin.getOutputWSize();
+  int height = perlin.getOutputHSize();
+  for (int i = 0; i<width*height; i++)
+    {
+      if (map(arr[i],0,1,0,10) < min) {
+          min = map(arr[i],0,1,0,10);
+      }
 
+      if (map(arr[i],0,1,0,10) > max) {
+          max = map(arr[i],0,1,0,10);
+      }
+    }
+    value[0] = min;
+    value[1] = max;
+    return value;
+}
+
+//helper function for getting surface normal of a polygon bascially from ex13
+// static void get_surface_normal(vtx p1, vtx p2, vtx p3){
+//     //  Planar vector 0
+//     float dx0 = p1.x-p2.x;
+//     float dy0 = p1.y-p2.y;
+//     float dz0 = p1.z-p2.z;
+//     //  Planar vector 1
+//     float dx1 = p3.x-p1.x;
+//     float dy1 = p3.y-p1.y;
+//     float dz1 = p3.z-p1.z;
+//     //  Normal
+//     float Nx = dy0*dz1 - dy1*dz0;
+//     float Ny = dz0*dx1 - dz1*dx0;
+//     float Nz = dx0*dy1 - dx1*dy0;
+//
+//     glNormal3f(Nx,Ny,Nz);
+//  }
 /*
 *  Set projection
 */
@@ -99,29 +156,30 @@ static void Project()
  glLoadIdentity();
 }
 
-//helper function for getting surface normal of a polygon bascially from ex13
-static void get_surface_normal(vtx p1, vtx p2, vtx p3){
-    //  Planar vector 0
-    float dx0 = p1.x-p2.x;
-    float dy0 = p1.y-p2.y;
-    float dz0 = p1.z-p2.z;
-    //  Planar vector 1
-    float dx1 = p3.x-p1.x;
-    float dy1 = p3.y-p1.y;
-    float dz1 = p3.z-p1.z;
-    //  Normal
-    float Nx = dy0*dz1 - dy1*dz0;
-    float Ny = dz0*dx1 - dz1*dx0;
-    float Nz = dx0*dy1 - dx1*dy0;
+/*
+Draw vertex in polar coordinates with normal
+*/
+static void Vertex(double th,double ph, double r, double g, double b)
+{
+   if(r==1 && g==1 && b==1){
+     glColor3f(1,1,1);
+   }
+   else{
+     glColor3f(r+((Cos(th)*Cos(th))/30),g-((Sin(ph)*Sin(ph))/30),b+((Sin(th)*Sin(th))/30));
+   }
+   double x = Sin(th)*Cos(ph);
+   double y = Cos(th)*Cos(ph);
+   double z =         Sin(ph);
 
-    glNormal3f(Nx,Ny,Nz);
- }
+   glNormal3d(x,y,z);
+   glVertex3d(x,y,z);
+}
 
 static void terrain(double x,double y,double z,
                   double dx,double dy,double dz,
-                  double th)
+                  double th, double waterLevel)
 {
-   vtx vert[3];
+   // vtx vert[3];
    //  Set specular color to white
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -137,21 +195,31 @@ static void terrain(double x,double y,double z,
 
    for(int i=0; i<row;i++){
      glBegin(GL_TRIANGLE_STRIP);
-     glColor3f(0.45,0.35,0.25);
      for(int j=0; j<col-1; j++){
        // !! work on Lighting !!
-       // saves the vertices of the terrain to calulate the norams
-       vert[0].x = j;
-       vert[0].y = i;
-       vert[0].z = t.hmap[j][i];
-       vert[1].x = j;
-       vert[1].y = i+1;
-       vert[1].z = t.hmap[j][i+1];
-       vert[2].x = j+1;
-       vert[2].y = i;
-       vert[2].z = t.hmap[j+1][i];
+       // saves the vertices of the terrain to calulate the norms
+       // vert[0].x = j;
+       // vert[0].y = i;
+       // vert[0].z = t.hmap[j][i];
+       // vert[1].x = j;
+       // vert[1].y = i+1;
+       // vert[1].z = t.hmap[j][i+1];
+       // vert[2].x = j+1;
+       // vert[2].y = i;
+       // vert[2].z = t.hmap[j+1][i];
        //sets the vertices of the terrain
-       get_surface_normal(vert[0],vert[1],vert[2]);
+       // if(t.hmap[j][i] == t.hmap[j][i+1]){
+       //   glNormal3d(0,1,0);
+       // } else {
+       //   get_surface_normal(vert[0],vert[1],vert[2]);
+       // }
+       glNormal3d(0,1,0);
+       // depending on the water level the terrain is a different color will also hopefully apply to textures
+       if(t.hmap[j][i] < waterLevel+0.2 && t.hmap[j][i+1]< waterLevel+0.3){
+         glColor3f(0.65,0.55,0.5);
+       } else {
+         glColor3f(0.1, 0.45, 0.15);
+       }
        glVertex3d(i,t.hmap[j][i],j);
        glVertex3d(i+1,t.hmap[j][i+1],j);
 
@@ -164,7 +232,7 @@ static void terrain(double x,double y,double z,
    glPopMatrix();
 }
 
-// Make clear and add fog
+// water is transparent
 static void water(double x,double y,double z,
                   double dx,double dy,double dz,
                   double th)
@@ -191,6 +259,7 @@ static void water(double x,double y,double z,
      glBegin(GL_TRIANGLE_STRIP);
      for(int j=0; j<col-1; j++){
        //sets the vertices of the terrain
+       glNormal3d(0,1,0);
        glVertex3d(i,0,j);
        glVertex3d(i+1,0,j);
 
@@ -203,25 +272,6 @@ static void water(double x,double y,double z,
    glDisable(GL_TEXTURE_2D);
    //  Undo transofrmations
    glPopMatrix();
-}
-
-/*
-Draw vertex in polar coordinates with normal
-*/
-static void Vertex(double th,double ph, double r, double g, double b)
-{
-   if(r==1 && g==1 && b==1){
-     glColor3f(1,1,1);
-   }
-   else{
-     glColor3f(r+((Cos(th)*Cos(th))/30),g-((Sin(ph)*Sin(ph))/30),b+((Sin(th)*Sin(th))/30));
-   }
-   double x = Sin(th)*Cos(ph);
-   double y = Cos(th)*Cos(ph);
-   double z =         Sin(ph);
-
-   glNormal3d(x,y,z);
-   glVertex3d(x,y,z);
 }
 
 // added to ex 8 code so that the color of the color of the sphere can change for each instance
@@ -255,6 +305,414 @@ static void sphere(double x,double y,double z,double r, double r_rgb, double g, 
       glEnd();
    }
 
+   //  Undo transformations
+   glPopMatrix();
+}
+
+static void rock(double x,double y,double z,double r, float *seed)
+{
+   //makes the points to make the sphere look more like a rock
+   rocks.noise2D(rocks.getOutputWSize(), rocks.getOutputHSize(), seed, rocks.getOctaves(), rocks.getScalingBias(), rocks.getOutput());
+   float *fRockNoise2D = rocks.getOutput();
+   int h = 0;
+   for(int i=0; i<13;i++){
+     for(int j=0; j<25; j++){
+        // saves the values for the hight of the terrian using Perlin noise
+        rockP.hmap[j][i] = map(fRockNoise2D[h],0,1,0.5,r);
+        h++;
+     }
+   }
+   const int d=15;
+   double xS;
+   double yS;
+   double zS;
+
+   //  Save transformation
+   glPushMatrix();
+   //  Offset and scale
+   glTranslated(x,y,z);
+   glScaled(r,r,r);
+
+   //  White ball with yellow specular
+   float yellow[]   = {1.0,1.0,0.0,1.0};
+   float Emission[] = {0.0,0.0,0.01*0,1.0};
+
+   glMaterialf(GL_FRONT,GL_SHININESS,shiny);
+   glMaterialfv(GL_FRONT,GL_SPECULAR,yellow);
+   glMaterialfv(GL_FRONT,GL_EMISSION,Emission);
+
+   //  South pole cap
+   glBegin(GL_TRIANGLE_FAN);
+   xS = rockP.hmap[0][0]*Sin(0)*Cos(-90);
+   yS = rockP.hmap[0][0]*Cos(0)*Cos(-90);
+   zS = rockP.hmap[0][0]*       Sin(-90);
+   glNormal3d(xS,yS,zS);
+   glColor3f(0.15,0.15,0.15);
+   glVertex3d(xS,yS,zS);
+   int i = 0;
+   for (int th=0;th<=360;th+=d)
+   {
+     if(th == 360){
+       xS = rockP.hmap[0][0]*Sin(th)*Cos(d-90);
+       yS = rockP.hmap[0][0]*Cos(th)*Cos(d-90);
+       zS = rockP.hmap[0][0]*        Sin(d-90);
+       glNormal3d(xS,yS,zS);
+       glVertex3d(xS,yS,zS);
+     } else {
+       xS = rockP.hmap[i][0]*Sin(th)*Cos(d-90);
+       yS = rockP.hmap[i][0]*Cos(th)*Cos(d-90);
+       zS = rockP.hmap[i][0]*        Sin(d-90);
+       glNormal3d(xS,yS,zS);
+       glVertex3d(xS,yS,zS);
+       i++;
+     }
+   }
+   glEnd();
+
+   //  Latitude bands
+   int j = 0;
+   for (int ph=d-90;ph<=90-2*d;ph+=d)
+   {
+      i=0;
+      glBegin(GL_TRIANGLE_STRIP);
+      glColor3f(0.15,0.15,0.15);
+      for (int th=0;th<=360;th+=d)
+      {
+        if(th == 360){
+          xS = rockP.hmap[0][j]*Sin(th)*Cos(ph);
+          yS = rockP.hmap[0][j]*Cos(th)*Cos(ph);
+          zS = rockP.hmap[0][j]*        Sin(ph);
+          glNormal3d(xS,yS,zS);
+          glVertex3d(xS,yS,zS);
+
+          xS = rockP.hmap[0][j+1]*Sin(th)*Cos(ph+d);
+          yS = rockP.hmap[0][j+1]*Cos(th)*Cos(ph+d);
+          zS = rockP.hmap[0][j+1]*        Sin(ph+d);
+          glNormal3d(xS,yS,zS);
+          glVertex3d(xS,yS,zS);
+          i++;
+        } else {
+          xS = rockP.hmap[i][j]*Sin(th)*Cos(ph);
+          yS = rockP.hmap[i][j]*Cos(th)*Cos(ph);
+          zS = rockP.hmap[i][j]*        Sin(ph);
+          glNormal3d(xS,yS,zS);
+          glVertex3d(xS,yS,zS);
+
+          xS = rockP.hmap[i][j+1]*Sin(th)*Cos(ph+d);
+          yS = rockP.hmap[i][j+1]*Cos(th)*Cos(ph+d);
+          zS = rockP.hmap[i][j+1]*        Sin(ph+d);
+          glNormal3d(xS,yS,zS);
+          glVertex3d(xS,yS,zS);
+          i++;
+        }
+      }
+      j++;
+      glEnd();
+   }
+   //  North pole cap
+   glBegin(GL_TRIANGLE_FAN);
+   xS = rockP.hmap[0][10]*Sin(0)*Cos(90);
+   yS = rockP.hmap[0][10]*Cos(0)*Cos(90);
+   zS = rockP.hmap[0][10]*       Sin(90);
+   glNormal3d(xS,yS,zS);
+   glColor3f(0.15,0.15,0.15);
+   glVertex3d(xS,yS,zS);
+   i=0;
+   for (int th=0;th<=360;th+=d)
+   {
+     if(th == 360){
+       xS = rockP.hmap[0][10]*Sin(th)*Cos(90-d);
+       yS = rockP.hmap[0][10]*Cos(th)*Cos(90-d);
+       zS = rockP.hmap[0][10]*        Sin(90-d);
+       glNormal3d(xS,yS,zS);
+       glVertex3d(xS,yS,zS);
+     } else {
+       xS = rockP.hmap[i][10]*Sin(th)*Cos(90-d);
+       yS = rockP.hmap[i][10]*Cos(th)*Cos(90-d);
+       zS = rockP.hmap[i][10]*        Sin(90-d);
+       glNormal3d(xS,yS,zS);
+       glVertex3d(xS,yS,zS);
+       i++;
+     }
+   }
+   glEnd();
+
+   //  Undo transformations
+   glPopMatrix();
+}
+/*
+!!Mushroom object!! add textures
+*/
+static void mushroom(double x,double y,double z,double r)
+{
+  const int d=15;
+
+  double xN;
+  double yN;
+  double zN;
+
+  vtx domeRim[25][2];
+  vtx stem[25];
+
+  //  Save transformation
+  glPushMatrix();
+  //  Offset and scale
+  glTranslated(x,y,z);
+  glScaled(r,r,r);
+
+  //  outer North pole cap
+  glBegin(GL_TRIANGLE_FAN);
+  glColor3f(0.5, 0.15, 0.23);
+  glNormal3d(0,1,0);
+  glVertex3d(0,1.5,0);
+  for (int th=0;th<=360;th+=d)
+  {
+    xN = Sin(th)*Cos(90-d);
+    yN = 0.5+       Sin(90-d);
+    zN = Cos(th)*Cos(90-d);
+
+    glColor3f(0.5, 0.15, 0.23);
+    glNormal3d(xN,yN,zN);
+    glVertex3d(xN,yN,zN);
+  }
+  glEnd();
+
+  //  outer Latitude bands basiically makes a dome shape
+  for (int ph=90-2*d;ph>=(d-90)/6;ph-=d)
+  {
+     glBegin(GL_TRIANGLE_STRIP);
+     int i = 0;
+     glColor3f(0.5, 0.15, 0.23);
+     for (int th=0;th<=360;th+=d)
+     {
+        xN = Sin(th)*Cos(ph);
+        yN = 0.5+Sin(ph);
+        zN = Cos(th)*Cos(ph);
+        glNormal3d(xN,yN,zN);
+        glVertex3d(xN,yN,zN);
+
+        xN = Sin(th)*Cos(ph+d);
+        yN = 0.5+Sin(ph+d);
+        zN = Cos(th)*Cos(ph+d);
+        glNormal3d(xN,yN,zN);
+        glVertex3d(xN,yN,zN);
+        // saves the last vertices of the outer dome
+        if(ph == 0){
+          domeRim[i][0].x = Sin(th)*Cos(ph);
+          domeRim[i][0].y = 0.5+Sin(ph);
+          domeRim[i][0].z = Cos(th)*Cos(ph);
+          i++;
+        }
+     }
+     glEnd();
+  }
+
+  //  botom of the stem
+  glBegin(GL_TRIANGLE_FAN);
+  glColor3f(0.95,0.92,0.8);
+  glNormal3d(0,-1,0);
+  glVertex3d(0,0,0);
+  int c = 0;
+  for (int th=0;th<=360;th+=d)
+  {
+    xN = 0.85*Sin(th)*Cos(90-d);
+    yN = -0.85+0.85*        Sin(90-d);
+    zN = 0.85*Cos(th)*Cos(90-d);
+
+    glColor3f(0.95,0.92,0.8);
+    glNormal3d(0,-1,0);
+    glVertex3d(xN,yN,zN);
+
+    stem[c].x = xN;
+    stem[c].y = yN;
+    stem[c].z = zN;
+    c++;
+  }
+  glEnd();
+
+  //  inner Latitude bands
+  for (int ph=90-2*d;ph>=(d-90)/6;ph-=d)
+  {
+     glBegin(GL_TRIANGLE_STRIP);
+     int j = 0;
+     glColor3f(0.95,0.92,0.8);
+     for (int th=0;th<=360;th+=d)
+     {
+        xN = 0.85*Sin(th)*Cos(ph);
+        yN = 0.5+0.85*Sin(ph);
+        zN = 0.85*Cos(th)*Cos(ph);
+        glNormal3d(xN,yN,zN);
+        glVertex3d(xN,yN,zN);
+
+        xN = 0.85*Sin(th)*Cos(ph+d);
+        yN = 0.5+0.85*Sin(ph+d);
+        zN = 0.85*Cos(th)*Cos(ph+d);
+        glNormal3d(xN,yN,zN);
+        glVertex3d(xN,yN,zN);
+        // saves the last vertices of the inner dome
+        if(ph == 0){
+          domeRim[j][1].x = 0.85*Sin(th)*Cos(ph);
+          domeRim[j][1].y = 0.5+0.85*Sin(ph);
+          domeRim[j][1].z = 0.85*Cos(th)*Cos(ph);
+          j++;
+        }
+     }
+     glEnd();
+  }
+
+  // bottem rim of dome
+  glBegin(GL_TRIANGLE_STRIP);
+  int g;
+  for(g=0; g<25; g++){
+    // uses the inner and outer vertices at the end of the domes to make the rim
+    glColor3f(0.95,0.92,0.8);
+    glNormal3d(0,-1,0);
+    glVertex3d(domeRim[g][0].x,domeRim[g][0].y,domeRim[g][0].z);
+    glVertex3d(domeRim[g][1].x,domeRim[g][1].y,domeRim[g][1].z);
+  }
+  glEnd();
+
+  // sides of stem
+  glBegin(GL_TRIANGLE_STRIP);
+  for(g=0; g<25; g++){
+    glColor3f(0.95,0.92,0.9);
+    glNormal3d(stem[g].x,stem[g].y,stem[g].z);
+    glVertex3d(stem[g].x,stem[g].y,stem[g].z);
+    glNormal3d(stem[g].x,1.5+stem[g].y,stem[g].z);
+    glVertex3d(stem[g].x,1.5+stem[g].y,stem[g].z);
+
+  }
+  glEnd();
+
+  //  Undo transformations
+  glPopMatrix();
+}
+
+static void flower(double x,double y,double z,double r)
+{
+   vtx stemf[25][2];
+
+   const int d=15;
+   double xF;
+   double yF;
+   double zF;
+
+   //  Save transformation
+   glPushMatrix();
+   //  Offset and scale
+   glTranslated(x,y,z);
+   glScaled(r,r,r);
+
+   //  center of the flower
+   for (int ph=-90;ph<90;ph+=d)
+   {
+      glBegin(GL_QUAD_STRIP);
+      int i = 0;
+      for (int th=0;th<=360;th+=d)
+      {
+         xF = 0.25*Sin(th)*Cos(ph);
+         yF = 1.5+0.15*Sin(ph);
+         zF = 0.25*Cos(th)*Cos(ph);
+         glNormal3d(xF,yF,zF);
+         if(yF <= 1.5){
+           glColor3f(0.05, 0.45, 0.15);
+         } else {
+           glColor3f(0.6,0.55,0.15);
+         }
+         glVertex3d(xF,yF,zF);
+         xF = 0.25*Sin(th)*Cos(ph+d);
+         yF = 1.5+0.15*Sin(ph+d);
+         zF = 0.25*Cos(th)*Cos(ph+d);
+         glNormal3d(xF,yF,zF);
+         glVertex3d(xF,yF,zF);
+         i++;
+      }
+      glEnd();
+   }
+
+   //petals of the flower
+   glBegin(GL_TRIANGLE_FAN);
+   glColor3f(0.5, 0.15, 0.23);
+   glNormal3d(0,1,0);
+   glVertex3d(0,1.5,0);
+   for (int th=0;th<=360;th+=d)
+   {
+     xF = 2*Sin(th)*Cos(90-d);
+     yF = 1.59;
+     zF = 2*Cos(th)*Cos(90-d);
+
+     glColor3f(map(x,0,60,0,1), map(y,0,60,0,1),map(z,0,60,0,1));
+     glNormal3d(xF,yF,zF);
+     if(th%2 == 0){
+       glVertex3d(xF,yF,zF);
+     }
+   }
+   glEnd();
+
+   int j = 0;
+   //bottom of the stem
+   glBegin(GL_TRIANGLE_FAN);
+   glColor3f(0.05, 0.45, 0.15);
+   glNormal3d(0,-1,0);
+   glVertex3d(0,0,0);
+   for (int th=0;th<=360;th+=d)
+   {
+     xF = 0.25*Sin(th)*Cos(90-d);
+     yF = 0;
+     zF = 0.25*Cos(th)*Cos(90-d);
+     glColor3f(0.05, 0.45, 0.15);
+     glNormal3d(xF,yF,zF);
+     glVertex3d(xF,yF,zF);
+     stemf[j][0].x = xF;
+     stemf[j][0].y = yF;
+     stemf[j][0].z = zF;
+     j++;
+   }
+   glEnd();
+
+   j = 0;
+   //break point
+   glBegin(GL_TRIANGLE_FAN);
+   glColor3f(0.05, 0.45, 0.15);
+   glNormal3d(0,-1,0);
+   glVertex3d(0.05,0.95,0.05);
+   for (int th=0;th<=360;th+=d)
+   {
+     xF = 0.05+0.25*Sin(th)*Cos(90-d);
+     yF = 0.95;
+     zF = 0.05+0.25*Cos(th)*Cos(90-d);
+     glColor3f(0.05, 0.45, 0.15);
+     glNormal3d(xF,yF,zF);
+     glVertex3d(xF,yF,zF);
+     stemf[j][1].x = xF;
+     stemf[j][1].y = yF;
+     stemf[j][1].z = zF;
+     j++;
+
+   }
+   glEnd();
+
+   glBegin(GL_QUAD_STRIP);
+   for(int h=0;h<24;h++){
+     glColor3f(0.05, 0.45, 0.15);
+     // uses the vertices from the outside of the top and bottom to make the triangle strip
+     glNormal3d(stemf[h][0].x,stemf[h][0].y,stemf[h][0].z);
+     glVertex3d(stemf[h][0].x,stemf[h][0].y,stemf[h][0].z);
+     glNormal3d(stemf[h][1].x,stemf[h][1].y,stemf[h][1].z);
+     glVertex3d(stemf[h][1].x,stemf[h][1].y,stemf[h][1].z);
+   }
+   glEnd();
+
+   glBegin(GL_QUAD_STRIP);
+   for(int h=0;h<24;h++){
+     glColor3f(0.05, 0.45, 0.15);
+     // uses the vertices from the outside of the top and bottom to make the triangle strip
+     glNormal3d(stemf[h][1].x,stemf[h][1].y,stemf[h][1].z);
+     glVertex3d(stemf[h][1].x,stemf[h][1].y,stemf[h][1].z);
+     glNormal3d(stemf[h][0].x,1.5+stemf[h][0].y,stemf[h][0].z);
+     glVertex3d(stemf[h][0].x,1.5+stemf[h][0].y,stemf[h][0].z);
+   }
+   glEnd();
    //  Undo transformations
    glPopMatrix();
 }
@@ -343,160 +801,6 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
 }
 
 /*
-!!Mushroom object!! add textures
-*/
-static void mushroom(double x,double y,double z,double r)
-{
-  const int d=15;
-
-  double xN;
-  double yN;
-  double zN;
-
-  vtx domeRim[25][2];
-  vtx stem[25][2];
-
-  //  Save transformation
-  glPushMatrix();
-  //  Offset and scale
-  glTranslated(x,y,z);
-  glScaled(r,r,r);
-
-  //  outer North pole cap
-  glBegin(GL_TRIANGLE_FAN);
-  glColor3f(0.5, 0.15, 0.23);
-  glNormal3d(0,1,0);
-  glVertex3d(0,1.5,0);
-  for (int th=0;th<=360;th+=d)
-  {
-    xN = Sin(th)*Cos(90-d);
-    yN = 0.5+       Sin(90-d);
-    zN = Cos(th)*Cos(90-d);
-
-    glColor3f(0.5, 0.15, 0.23);
-    glNormal3d(xN,yN,zN);
-    glVertex3d(xN,yN,zN);
-  }
-  glEnd();
-
-  //  outer Latitude bands basiically makes a dome shape
-  for (int ph=90-2*d;ph>=(d-90)/6;ph-=d)
-  {
-     glBegin(GL_TRIANGLE_STRIP);
-     int i = 0;
-     glColor3f(0.5, 0.15, 0.23);
-     for (int th=0;th<=360;th+=d)
-     {
-        xN = Sin(th)*Cos(ph);
-        yN = 0.5+Sin(ph);
-        zN = Cos(th)*Cos(ph);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-
-        xN = Sin(th)*Cos(ph+d);
-        yN = 0.5+Sin(ph+d);
-        zN = Cos(th)*Cos(ph+d);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-        // saves the last vertices of the outer dome
-        if(ph == 0){
-          domeRim[i][0].x = Sin(th)*Cos(ph);
-          domeRim[i][0].y = 0.5+Sin(ph);
-          domeRim[i][0].z = Cos(th)*Cos(ph);
-          i++;
-        }
-
-     }
-     glEnd();
-  }
-
-  //  botom of the stem
-  glBegin(GL_TRIANGLE_FAN);
-  glColor3f(0.95,0.92,0.8);
-  glNormal3d(0,-1,0);
-  glVertex3d(0,0,0);
-  int c = 0;
-  for (int th=0;th<=360;th+=d)
-  {
-    xN = 0.85*Sin(th)*Cos(90-d);
-    yN = -0.85+0.85*        Sin(90-d);
-    zN = 0.85*Cos(th)*Cos(90-d);
-
-    glColor3f(0.95,0.92,0.8);
-    glNormal3d(0,-1,0);
-    glVertex3d(xN,yN,zN);
-
-    stem[c][1].x = xN;
-    stem[c][1].y = yN;
-    stem[c][1].z = zN;
-    stem[c][0].x = xN;
-    stem[c][0].y = 0.5+0.85*Sin(90-d);
-    stem[c][0].z = zN;
-    c++;
-  }
-  glEnd();
-
-  //  inner Latitude bands
-  for (int ph=90-2*d;ph>=(d-90)/6;ph-=d)
-  {
-     glBegin(GL_TRIANGLE_STRIP);
-     int j = 0;
-     glColor3f(0.95,0.92,0.8);
-     for (int th=0;th<=360;th+=d)
-     {
-        xN = 0.85*Sin(th)*Cos(ph);
-        yN = 0.5+0.85*Sin(ph);
-        zN = 0.85*Cos(th)*Cos(ph);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-
-        xN = 0.85*Sin(th)*Cos(ph+d);
-        yN = 0.5+0.85*Sin(ph+d);
-        zN = 0.85*Cos(th)*Cos(ph+d);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-        // saves the last vertices of the inner dome
-        if(ph == 0){
-          domeRim[j][1].x = 0.85*Sin(th)*Cos(ph);
-          domeRim[j][1].y = 0.5+0.85*Sin(ph);
-          domeRim[j][1].z = 0.85*Cos(th)*Cos(ph);
-          j++;
-        }
-
-
-     }
-     glEnd();
-  }
-
-  // bottem rim of dome
-  glBegin(GL_TRIANGLE_STRIP);
-  int g;
-  for(g=0; g<25; g++){
-    // uses the inner and outer vertices at the end of the domes to make the rim
-    glColor3f(0.95,0.92,0.8);
-    glNormal3d(0,-1,0);
-    glVertex3d(domeRim[g][0].x,domeRim[g][0].y,domeRim[g][0].z);
-    glVertex3d(domeRim[g][1].x,domeRim[g][1].y,domeRim[g][1].z);
-  }
-  glEnd();
-
-  // sides of stem
-  glBegin(GL_TRIANGLE_STRIP);
-  for(g=0; g<25; g++){
-    glColor3f(0.95,0.92,0.9);
-    glNormal3d(stem[g][0].x,stem[g][0].y,stem[g][0].z);
-    glVertex3d(stem[g][0].x,stem[g][0].y,stem[g][0].z);
-    glNormal3d(stem[g][1].x,stem[g][1].y,stem[g][1].z);
-    glVertex3d(stem[g][1].x,stem[g][1].y,stem[g][1].z);
-
-  }
-  glEnd();
-
-  //  Undo transformations
-  glPopMatrix();
-}
-
-/*
 !!Generates Trees using Recursion!! still needs work
 */
 float angle1 = 315;
@@ -547,30 +851,16 @@ void branch(float len, float stop, float sbtm, double x, double y, double z){
 
 }
 
-float value[2];
-
-float *findMinMax(float *arr){
-  float min = 10;
-  float max = 0;
-  int width = perlin.getOutputWSize();
-  int height = perlin.getOutputHSize();
-  for (int i = 0; i<width*height; i++)
-    {
-      if (map(arr[i],0,1,0,10) < min) {
-          min = map(arr[i],0,1,0,10);
-      }
-
-      if (map(arr[i],0,1,0,10) > max) {
-          max = map(arr[i],0,1,0,10);
-      }
-    }
-    value[0] = min;
-    value[1] = max;
-    return value;
-}
-
+// make into class???
 int numTrees = 50;
+int numRocks = 50;
+int numMush = 75;
+int numFlow = 10;
 Point treePos[50];
+Point rockPos[50];
+Point mushPos[75];
+Point flowPos[10];
+float *rockSeed[50];
 
 void myInit(){
   Point minT,maxT,outT;
@@ -583,11 +873,30 @@ void myInit(){
     treePos[i].x = outT.x;
     treePos[i].y = outT.y;
   }
+  for(int j = 0;j < numRocks;j++){
+    outT = randomPoint(minT, maxT);
+    rockPos[j].x = outT.x;
+    rockPos[j].y = outT.y;
+    rockSeed[j] = rocks.getSeed();
+    rocks.randSeed();
+  }
+  for(int k = 0;k < numMush;k++){
+    outT = randomPoint(minT, maxT);
+    mushPos[k].x = outT.x;
+    mushPos[k].y = outT.y;
+  }
+  for(int l = 0;l < numFlow;l++){
+    outT = randomPoint(minT, maxT);
+    flowPos[l].x = outT.x;
+    flowPos[l].y = outT.y;
+  }
+
+  perlin.setOctaves(3);
+  rocks.setOctaves(4);
 }
 
 void display()
 {
-
   perlin.noise2D(perlin.getOutputWSize(), perlin.getOutputHSize(), perlin.getSeed(), perlin.getOctaves(), perlin.getScalingBias(), perlin.getOutput());
   float *fPerlinNoise2D = perlin.getOutput();
   int h = 0;
@@ -598,28 +907,26 @@ void display()
        h++;
     }
   }
-  //std::cout<<t.hmap[31][31]<<std::endl;
-  //gets the min and max x and z cordents
-
   // gets the minimum and max height of terrain
   float *minMax = findMinMax(fPerlinNoise2D);
   ///  Erase the window and the depth buffer
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glEnable(GL_DEPTH_TEST);
-
+  //enables and disables the wire frame
   if(wireframe == 0){
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
   } else{
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
   }
+
   glLoadIdentity();
   //  Set perspective
   if(mode==0 && object!=0){
      glRotatef(ph,1,0,0);
      glRotatef(th,0,1,0);
   }
-  else if(mode==1 && object!=0){
+  else if((mode==1 && object!=0) && (mode==1 && object!=3)){
      //  Eye position
      double Ex = -2*dim*Sin(th)*Cos(ph);
      double Ey = +2*dim        *Sin(ph);
@@ -670,6 +977,8 @@ void display()
   else
      glDisable(GL_LIGHTING);
 
+  //the different objects
+  float waterLevel = minMax[1]/2;
   if(object == 1){
     treeBranch(0,0,0, 0.25,0.45, 1,1);
   }
@@ -677,16 +986,45 @@ void display()
     mushroom(0,0,0,1);
   }
   else if(object == 3) {
+    terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0, waterLevel);
+  }
+  else if(object == 4){
+    rock(0,0,0 ,1, rocks.getSeed());
+  }
+  else if(object == 5){
     branch(1, 0.25, 0.45 ,0,0,0);
   }
+  else if(object == 6){
+    flower(0,0,0,1);
+  }
+  // main scene
   else {
-    float waterLevel = minMax[1]/2;
-    terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0);
+    terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0, waterLevel);
     water((col/2)*-1,waterLevel,row/2*-1, 1,1,1 , 0);
+    //loop that places all the trees
     for(int i = 0;i < numTrees;i++){
-      if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5) //only places trees if they are high enough above the waterlevel
-        //treeBranch((col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x, 0.25,0.45, 1,1);
-        branch(1, 0.25, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
+       if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5){ //only places trees if they are high enough above the waterlevel
+          branch(0.5, 0.25, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
+       }
+    }
+    //loop that places all the rocks
+    for(int j = 0;j < numRocks;j++){
+       if(t.hmap[rockPos[j].x][rockPos[j].y]>waterLevel+0.5){
+          rock((col/2*-1)+rockPos[j].y,t.hmap[rockPos[j].x][rockPos[j].y],(row/2*-1)+rockPos[j].x, 0.75, rockSeed[j]);
+       }
+    }
+    //loop that places all of the mushrooms
+    for(int k = 0;k < numMush;k++){
+       if(t.hmap[mushPos[k].x][mushPos[k].y]>waterLevel+0.5){
+          mushroom((col/2*-1)+mushPos[k].y,t.hmap[mushPos[k].x][mushPos[k].y],(row/2*-1)+mushPos[k].x, 0.05);
+       }
+
+    }
+    //loop that places all of the Flowers
+    for(int l = 0;l < numFlow;l++){
+       if(t.hmap[flowPos[l].x][flowPos[l].y]>waterLevel+0.5){
+          flower((col/2*-1)+flowPos[l].y,t.hmap[flowPos[l].x][flowPos[l].y],(row/2*-1)+flowPos[l].x, 0.15);
+       }
     }
   }
 
@@ -768,6 +1106,8 @@ void key(unsigned char ch,int x,int y)
    //zooms out
    else if (ch == '-')
        dim += 0.1;
+   else if (ch == 'a')
+       axes = 1-axes;
    //  changes fov
    else if (ch == 'f')
        fov = 0;
@@ -782,30 +1122,64 @@ void key(unsigned char ch,int x,int y)
    else if(ch == 'l' || ch == 'L')
      light = 1-light;
    //changes mode between perspective and orthogonal
-   else if(ch=='m' || ch == 'M')
-     mode = (mode+1)%2;
+   else if(ch=='m' || ch == 'M'){
+      if(object == 0){
+        mode = 1;
+      } else {
+        mode = (mode+1)%2;
+      }
+   }
    //shows the differnt objects made and the scene
-   else if(ch == '0')
-     object = 0;
-   else if(ch == '1')
+   else if(ch == '0'){
+      object = 0;
+      dim = 21;
+   }
+   else if(ch == '1'){
      object = 1;
-   else if(ch == '2')
+     dim = 6.0;
+   }
+   else if(ch == '2'){
      object = 2;
-   else if(ch == '3')
-     object = 3;
+     dim = 6.0;
+   }
+   else if(ch == '3'){
+      object = 3;
+      dim = 21.0;
+   }
+   else if(ch == '4'){
+     object = 4;
+     dim = 6.0;
+   }
+   else if(ch == '5'){
+     object = 5;
+     dim = 6.0;
+   }
+   else if(ch == '6'){
+     object = 6;
+     dim = 6.0;
+   }
    //toggles the wireframe
-   else if(ch == 'o' ||ch == 'o')
+   else if(ch == 'w' ||ch == 'W')
      wireframe = (wireframe+1)%2;
    // c, d, and x control different aspects of terrian along with regenerating terrian
    else if(ch == 'c'){
-     perlin.changeOctaves();
+     if(object == 4){
+       rocks.changeOctaves();
+       if(rocks.getOctaves() == 5){
+         rocks.resetOctaves();
+       }
+     } else {
+       perlin.changeOctaves();
+     }
    }
    else if(ch == 'd'){
      perlin.changeScalingBias();
+     rocks.changeScalingBias();
    }
    else if(ch == 'x'){
      perlin.resetOctaves();
      perlin.randSeed();
+     rocks.randSeed();
    }
 
    //  Reproject
@@ -834,7 +1208,7 @@ int main(int argc,char* argv[])
    // this removes objects that are obstructed by other objects
    glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
    glutInitWindowSize(750,750);
-   glutCreateWindow("Final Project");
+   glutCreateWindow("Final Project: Sean Masucci");
 #ifdef USEGLEW
    //  Initialize GLEW
    if (glewInit()!=GLEW_OK) Fatal("Error initializing GLEW\n");

@@ -1,31 +1,33 @@
-HW6: Lighting and Textures
+Final Project
 
 Sean Masucci
 CSCI4229/5229 Fall 2021
 
-Demonstrates using lighting and textures using my scene made from HW4. I reused code from ex13, ex14, and ex15 to help make the lighting and amp the textures
-for the Scene and reused code from ex9 for the projections. Also I used some of the functions from CSCIx229.h.
+Currently I have most of the objects made, but I am working on making a couple more. With that said, I am still struggling with how I want to make the trees. Currently, I am
+just making the trees using the tree branch object and having another function build the tree recursively using the tree branch, but I want to make the trees more interesting. So, I
+started to try and apply the L-system algorithm for making the trees. In addition, I also want to try and make the tree a single object that's not made up of other objects. As for
+what else still needs to be done, I still need to implement a better first person camera, I want to add fog to the scene, and lastly I want to try and implement reflections in the water.
 
-Approximate time it took to complete the assignment: ~5 hours
+
+Approximate time it took to complete the assignment: ~20 hours
 
 Key bindings
-  x          Toggle axes
-  m/M        Changes mode to for different projections
-  arrows     Change view angle, also changes the direction you are looking when in FirstPerson mode
-  PgUp/PgDn  changes fov when in perspective
-  +/-        Zoom in and out when not in FirstPerson mode
-  []         Lower/rise light
-  w          When in FirstPerson mode this moves the camera forward
-  s          When in FirstPerson mode this moves the camera backward
-  l          Toggles lighting
-  y          Toggles light movement
-  a/A        Decrease/increase ambient light
-  d/D        Decrease/increase diffuse light
-  s/S        Decrease/increase specular light
-  e/E        Decrease/increase emitted light
-  n/N        Decrease/increase shininess
-  F1         toggles smooth/flat shading
-  F3         Toggle light distance (1/5)
-  F8         Change ball increment
-  0          Reset view angle
-  ESC        Exit
+  Esc           Exits the program.
+  a             Toggles axis.
+  c             Increments the octaves by one for the terrain or rocks depending on what object is being viewed.
+  d             Increments the scaling bias which effects how independent each point is.
+  x             Creates a new seed for the terrain or rocks and resets the octaves.
+  r             Changes the trees.
+  f/F           changes the fov.
+  l/L           Toggles the light
+  m/M           Changes between perspective and orthogonal projections
+  w/W           Toggles the wireframe.
+  0             Shows the main scene.
+  1             Shows the simple tree branch.
+  2             Shows the mushroom.
+  3             Shows just the terrain.
+  4             Shows the rocks.
+  5             Shows the tree.
+  6             Shows the flower
+  +/-           increases/decreases the dim.
+  arrow keys    Control the camera.

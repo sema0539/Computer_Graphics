@@ -5,16 +5,21 @@
 #include <string>
 
 //initalizes the seed and output array
-noiseClass::noiseClass(){
+noiseClass::noiseClass(int Width, int Height){
+  nOutputWidth = Width;
+  nOutputHeight = Height;
+  nOutputSize = nOutputWidth*nOutputHeight;
   fNoiseSeed2D = new float[nOutputSize];
   fPerlinNoise2D = new float[nOutputSize];
   for (int i = 0; i < nOutputSize; i++) fNoiseSeed2D[i] = (float)rand() / (float)RAND_MAX;
 
 }
-// function that approximates perlin noise
+/*
+This function approximates perlin noise and is taken from https://github.com/OneLoneCoder/videos/blob/master/OneLoneCoder_PerlinNoise.cpp
+and I implemented it into this class
+*/
 void noiseClass::noise2D(int nWidth, int nHeight, float *fSeed, int nOctaves, float fBias, float *fOutput)
 {
-  // Used 1D Perlin Noise
 		for (int x = 0; x < nWidth; x++)
 			for (int y = 0; y < nHeight; y++)
 			{
@@ -54,13 +59,14 @@ void noiseClass::randSeed(){
 float* noiseClass::getSeed(){
   return fNoiseSeed2D;
 }
-//increases the octaves until it reaches its max of 8
+//increases the octaves until it reaches a max of 7
 void noiseClass::changeOctaves(){
   nOctaveCount += 1;
   if(nOctaveCount == 7){
     nOctaveCount = 1;
   }
 }
+void noiseClass::setOctaves(int n){nOctaveCount = n;}
 int noiseClass::getOctaves(){ return nOctaveCount;}
 void noiseClass::resetOctaves(){nOctaveCount = 1;}
 //decreases the scalling bias which can make the scene look less natural
@@ -76,3 +82,7 @@ float* noiseClass::getOutput(){
 }
 int noiseClass::getOutputWSize(){return nOutputWidth;}
 int noiseClass::getOutputHSize(){return nOutputHeight;}
+noiseClass::~noiseClass(){
+  delete[] fNoiseSeed2D;
+  delete[] fPerlinNoise2D;
+}
