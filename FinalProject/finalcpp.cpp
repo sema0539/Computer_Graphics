@@ -25,7 +25,7 @@
 #include <random>
 #include "noiseClass.h"
 
-int axes=1;       //  Display axes
+int axes=0;       //  Display axes
 int th=0;         //  Azimuth of view angle
 int mode=1;
 int wireframe = 0;
@@ -37,7 +37,7 @@ double asp=1;     //  Aspect ratio
 double dim=6.0;   //  Size of world
 double Ox=0,Oy=0,Oz=0; //  LookAt Location
 // Light values from ex13
-int light     =   0;  // Lighting
+int light     =   1;  // Lighting
 int one       =   1;  // Unit value
 int distance  =  20;  // Light distance
 int inc       =   1;  // Ball increment
@@ -52,7 +52,7 @@ float shiny   =   1;  // Shininess (value)
 int zh        =  90;  // Light azimuth
 float ylight  =   0;  // Elevation of light
 double alpha = 0.75;
-int aone = 1;
+unsigned int texture[7];
 
 // tracks the postion of the camera
 double fpx = 0;
@@ -62,12 +62,13 @@ double fpz = 0;
 //tracks the direction the camera is looking
 double Cx = 0;
 double Cz = 0;
-
+// size of terrain
 int row = 64;
 int col = 64;
 
 const char* text[] = {"???"};
 
+//holds the values that are made from the noise function
 struct hmapStruct{float hmap[64][64];} t;
 struct rHmapStruct{float hmap[25][14];} rockP;
 //vertex struct
@@ -95,7 +96,7 @@ Point randomPoint(Point min, Point max)
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-
+//finds the min and max height  of the terrian
 float *findMinMax(float *arr){
   float *value;
   value = new float[2];
@@ -174,7 +175,33 @@ static void Vertex(double th,double ph, double r, double g, double b)
    glNormal3d(x,y,z);
    glVertex3d(x,y,z);
 }
+//this is the vertex function just with more customization
+static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos, float scale, int flip, int tex,
+  double r, double g, double b){
+  double x;
+  double y;
+  double z;
+  if(flip==0){
+     x = xPos+scale*Sin(th)*Cos(ph);
+     y = yPos+scale*Cos(th)*Cos(ph);
+     z = zPos+scale*        Sin(ph);
 
+  } else {
+     x = xPos+scale*Sin(th)*Cos(ph);
+     y = yPos+scale*        Sin(ph);
+     z = zPos+scale*Cos(th)*Cos(ph);
+  }
+  glColor3f(r,g,b);
+  glNormal3d(x,y,z);
+  // to map texture if needed
+  if(tex==1){
+    glTexCoord2f(th/360,ph/180);
+  }
+  glVertex3d(x,y,z);
+}
+/*
+!!Terrain object!!
+*/
 static void terrain(double x,double y,double z,
                   double dx,double dy,double dz,
                   double th, double waterLevel)
@@ -186,6 +213,11 @@ static void terrain(double x,double y,double z,
    glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
    glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
    glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+   //enables textures
+   glEnable(GL_TEXTURE_2D);
+   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+   glBindTexture(GL_TEXTURE_2D,texture[2]);
+
    //  Save transformation
    glPushMatrix();
    //  Offset
@@ -193,6 +225,8 @@ static void terrain(double x,double y,double z,
    glRotated(th,1,0,0);
    glScaled(dx,dy,dz);
 
+   // creates a mesh of polygons and applies different heights
+   // to each point based on the noise function
    for(int i=0; i<row;i++){
      glBegin(GL_TRIANGLE_STRIP);
      for(int j=0; j<col-1; j++){
@@ -214,15 +248,14 @@ static void terrain(double x,double y,double z,
        //   get_surface_normal(vert[0],vert[1],vert[2]);
        // }
        glNormal3d(0,1,0);
-       // depending on the water level the terrain is a different color will also hopefully apply to textures
+       // depending on the water level, the terrain is a different color will also hopefully apply to textures
        if(t.hmap[j][i] < waterLevel+0.2 && t.hmap[j][i+1]< waterLevel+0.3){
          glColor3f(0.65,0.55,0.5);
        } else {
          glColor3f(0.1, 0.45, 0.15);
        }
-       glVertex3d(i,t.hmap[j][i],j);
-       glVertex3d(i+1,t.hmap[j][i+1],j);
-
+       glTexCoord2f(i,j); glVertex3d(i,t.hmap[j][i],j);
+       glTexCoord2f(i+1,j); glVertex3d(i+1,t.hmap[j][i+1],j);
      }
      glEnd();
    }
@@ -230,9 +263,11 @@ static void terrain(double x,double y,double z,
 
    //  Undo transofrmations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
-
-// water is transparent
+/*
+!!water object!!
+*/
 static void water(double x,double y,double z,
                   double dx,double dy,double dz,
                   double th)
@@ -250,18 +285,22 @@ static void water(double x,double y,double z,
    glRotated(th,1,0,0);
    glScaled(dx,dy,dz);
 
+   glEnable(GL_TEXTURE_2D);
+   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+   glBindTexture(GL_TEXTURE_2D,texture[3]);
+    //makes the water transparent
    glEnable(GL_BLEND);
    glColor4f(0.1,0.15,0.45,alpha);
    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
    glDepthMask(0);
-
+   // makes a mesh of polygons for the water and is reused from terrain
    for(int i=0; i<row;i++){
      glBegin(GL_TRIANGLE_STRIP);
      for(int j=0; j<col-1; j++){
        //sets the vertices of the terrain
        glNormal3d(0,1,0);
-       glVertex3d(i,0,j);
-       glVertex3d(i+1,0,j);
+       glTexCoord2f(i,j); glVertex3d(i,0,j);
+       glTexCoord2f(i+1,j); glVertex3d(i+1,0,j);
 
      }
      glEnd();
@@ -272,12 +311,13 @@ static void water(double x,double y,double z,
    glDisable(GL_TEXTURE_2D);
    //  Undo transofrmations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
-
-// added to ex 8 code so that the color of the color of the sphere can change for each instance
+// added to ex 8 code so that the color of the sphere can change for each instance
 static void sphere(double x,double y,double z,double r, double r_rgb, double g, double b)
 {
    const int d=15;
+   float i=1;
 
    //  Save transformation
    glPushMatrix();
@@ -293,28 +333,54 @@ static void sphere(double x,double y,double z,double r, double r_rgb, double g, 
    glMaterialfv(GL_FRONT,GL_SPECULAR,yellow);
    glMaterialfv(GL_FRONT,GL_EMISSION,Emission);
 
+   if(r!=1 && g!=1 && b!=1){
+     glEnable(GL_TEXTURE_2D);
+     glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+     glBindTexture(GL_TEXTURE_2D,texture[1]);
+   }
+
    //  Latitude bands
    for (int ph=-90;ph<90;ph+=d)
    {
       glBegin(GL_QUAD_STRIP);
       for (int th=0;th<=360;th+=d)
       {
-         Vertex(th,ph,r_rgb,g,b);
-         Vertex(th,ph+d,r_rgb,g,b);
+         if(th%2==0 && g!=1){
+           //maps texture to first set of vertices
+           glTexCoord2f(0,i); Vertex(th,ph,r_rgb,g,b);
+           glTexCoord2f(0,0); Vertex(th,ph+d,r_rgb,g,b);
+         }
+         else if(g!=1){
+           //maps texture to second set of vertices
+           i-=1/144;
+           glTexCoord2f(i,i); Vertex(th,ph,r_rgb,g,b);
+           glTexCoord2f(i,0); Vertex(th,ph+d,r_rgb,g,b);
+         }
+         else {
+           Vertex(th,ph,r_rgb,g,b);
+           Vertex(th,ph+d,r_rgb,g,b);
+         }
       }
       glEnd();
    }
 
    //  Undo transformations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
 
+//This is based on the shere1 func from ex8 but I canged it so that it applies the noise function to each point
+//and added the seed variable so that it can gereate differnt seeds for multiple different rocks
+/*
+!!rock object!!
+*/
 static void rock(double x,double y,double z,double r, float *seed)
 {
-   //makes the points to make the sphere look more like a rock
+   //makes the points to make the sphere look more like a rock and takes in a new seed for each rock
    rocks.noise2D(rocks.getOutputWSize(), rocks.getOutputHSize(), seed, rocks.getOctaves(), rocks.getScalingBias(), rocks.getOutput());
    float *fRockNoise2D = rocks.getOutput();
    int h = 0;
+   //sets a height based on the x, y positon.
    for(int i=0; i<13;i++){
      for(int j=0; j<25; j++){
         // saves the values for the hight of the terrian using Perlin noise
@@ -323,9 +389,6 @@ static void rock(double x,double y,double z,double r, float *seed)
      }
    }
    const int d=15;
-   double xS;
-   double yS;
-   double zS;
 
    //  Save transformation
    glPushMatrix();
@@ -341,29 +404,21 @@ static void rock(double x,double y,double z,double r, float *seed)
    glMaterialfv(GL_FRONT,GL_SPECULAR,yellow);
    glMaterialfv(GL_FRONT,GL_EMISSION,Emission);
 
+   glEnable(GL_TEXTURE_2D);
+   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+   glBindTexture(GL_TEXTURE_2D,texture[4]);
+
    //  South pole cap
    glBegin(GL_TRIANGLE_FAN);
-   xS = rockP.hmap[0][0]*Sin(0)*Cos(-90);
-   yS = rockP.hmap[0][0]*Cos(0)*Cos(-90);
-   zS = rockP.hmap[0][0]*       Sin(-90);
-   glNormal3d(xS,yS,zS);
-   glColor3f(0.15,0.15,0.15);
-   glVertex3d(xS,yS,zS);
+   VertexAdj(0,-90, 0,0,0, rockP.hmap[0][0],0,1 ,0.15,0.15,0.15);
    int i = 0;
    for (int th=0;th<=360;th+=d)
    {
+     // the first and last postion need to be the same so that they line up
      if(th == 360){
-       xS = rockP.hmap[0][0]*Sin(th)*Cos(d-90);
-       yS = rockP.hmap[0][0]*Cos(th)*Cos(d-90);
-       zS = rockP.hmap[0][0]*        Sin(d-90);
-       glNormal3d(xS,yS,zS);
-       glVertex3d(xS,yS,zS);
+       VertexAdj(th,d-90, 0,0,0, rockP.hmap[0][0],0,1 ,0.15,0.15,0.15);
      } else {
-       xS = rockP.hmap[i][0]*Sin(th)*Cos(d-90);
-       yS = rockP.hmap[i][0]*Cos(th)*Cos(d-90);
-       zS = rockP.hmap[i][0]*        Sin(d-90);
-       glNormal3d(xS,yS,zS);
-       glVertex3d(xS,yS,zS);
+       VertexAdj(th,d-90, 0,0,0, rockP.hmap[i][0],0,1 ,0.15,0.15,0.15);
        i++;
      }
    }
@@ -374,64 +429,34 @@ static void rock(double x,double y,double z,double r, float *seed)
    for (int ph=d-90;ph<=90-2*d;ph+=d)
    {
       i=0;
-      glBegin(GL_TRIANGLE_STRIP);
+      glBegin(GL_QUAD_STRIP);
       glColor3f(0.15,0.15,0.15);
       for (int th=0;th<=360;th+=d)
       {
+        // first and last postion need to be the same so there are no gaps
         if(th == 360){
-          xS = rockP.hmap[0][j]*Sin(th)*Cos(ph);
-          yS = rockP.hmap[0][j]*Cos(th)*Cos(ph);
-          zS = rockP.hmap[0][j]*        Sin(ph);
-          glNormal3d(xS,yS,zS);
-          glVertex3d(xS,yS,zS);
-
-          xS = rockP.hmap[0][j+1]*Sin(th)*Cos(ph+d);
-          yS = rockP.hmap[0][j+1]*Cos(th)*Cos(ph+d);
-          zS = rockP.hmap[0][j+1]*        Sin(ph+d);
-          glNormal3d(xS,yS,zS);
-          glVertex3d(xS,yS,zS);
-          i++;
+          VertexAdj(th,ph, 0,0,0, rockP.hmap[0][j],0,1 ,0.15,0.15,0.15);
+          VertexAdj(th,ph+d, 0,0,0, rockP.hmap[0][j+1],0,1 ,0.15,0.15,0.15);
         } else {
-          xS = rockP.hmap[i][j]*Sin(th)*Cos(ph);
-          yS = rockP.hmap[i][j]*Cos(th)*Cos(ph);
-          zS = rockP.hmap[i][j]*        Sin(ph);
-          glNormal3d(xS,yS,zS);
-          glVertex3d(xS,yS,zS);
-
-          xS = rockP.hmap[i][j+1]*Sin(th)*Cos(ph+d);
-          yS = rockP.hmap[i][j+1]*Cos(th)*Cos(ph+d);
-          zS = rockP.hmap[i][j+1]*        Sin(ph+d);
-          glNormal3d(xS,yS,zS);
-          glVertex3d(xS,yS,zS);
-          i++;
+          VertexAdj(th,ph, 0,0,0, rockP.hmap[i][j],0,1 ,0.15,0.15,0.15);
+          VertexAdj(th,ph+d, 0,0,0, rockP.hmap[i][j+1],0,1 ,0.15,0.15,0.15);
         }
+        i++;
       }
       j++;
       glEnd();
    }
    //  North pole cap
    glBegin(GL_TRIANGLE_FAN);
-   xS = rockP.hmap[0][10]*Sin(0)*Cos(90);
-   yS = rockP.hmap[0][10]*Cos(0)*Cos(90);
-   zS = rockP.hmap[0][10]*       Sin(90);
-   glNormal3d(xS,yS,zS);
-   glColor3f(0.15,0.15,0.15);
-   glVertex3d(xS,yS,zS);
+   VertexAdj(0,90, 0,0,0, rockP.hmap[0][10],0,1 ,0.15,0.15,0.15);
    i=0;
    for (int th=0;th<=360;th+=d)
    {
+     // first and last postion need to be the same so there are no gaps
      if(th == 360){
-       xS = rockP.hmap[0][10]*Sin(th)*Cos(90-d);
-       yS = rockP.hmap[0][10]*Cos(th)*Cos(90-d);
-       zS = rockP.hmap[0][10]*        Sin(90-d);
-       glNormal3d(xS,yS,zS);
-       glVertex3d(xS,yS,zS);
+       VertexAdj(th,90-d, 0,0,0, rockP.hmap[0][10],0,1 ,0.15,0.15,0.15);
      } else {
-       xS = rockP.hmap[i][10]*Sin(th)*Cos(90-d);
-       yS = rockP.hmap[i][10]*Cos(th)*Cos(90-d);
-       zS = rockP.hmap[i][10]*        Sin(90-d);
-       glNormal3d(xS,yS,zS);
-       glVertex3d(xS,yS,zS);
+       VertexAdj(th,90-d, 0,0,0, rockP.hmap[i][10],0,1 ,0.15,0.15,0.15);
        i++;
      }
    }
@@ -439,17 +464,14 @@ static void rock(double x,double y,double z,double r, float *seed)
 
    //  Undo transformations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
 /*
-!!Mushroom object!! add textures
+!!Mushroom object!!
 */
 static void mushroom(double x,double y,double z,double r)
 {
   const int d=15;
-
-  double xN;
-  double yN;
-  double zN;
 
   vtx domeRim[25][2];
   vtx stem[25];
@@ -460,20 +482,18 @@ static void mushroom(double x,double y,double z,double r)
   glTranslated(x,y,z);
   glScaled(r,r,r);
 
-  //  outer North pole cap
+  glEnable(GL_TEXTURE_2D);
+  glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+
+  //  outer top cap
+  glBindTexture(GL_TEXTURE_2D,texture[5]);
   glBegin(GL_TRIANGLE_FAN);
   glColor3f(0.5, 0.15, 0.23);
   glNormal3d(0,1,0);
   glVertex3d(0,1.5,0);
   for (int th=0;th<=360;th+=d)
   {
-    xN = Sin(th)*Cos(90-d);
-    yN = 0.5+       Sin(90-d);
-    zN = Cos(th)*Cos(90-d);
-
-    glColor3f(0.5, 0.15, 0.23);
-    glNormal3d(xN,yN,zN);
-    glVertex3d(xN,yN,zN);
+    VertexAdj(th,90-d, 0,0.5,0, 1,1,1, 0.5,0.15,0.23);
   }
   glEnd();
 
@@ -482,20 +502,10 @@ static void mushroom(double x,double y,double z,double r)
   {
      glBegin(GL_TRIANGLE_STRIP);
      int i = 0;
-     glColor3f(0.5, 0.15, 0.23);
      for (int th=0;th<=360;th+=d)
      {
-        xN = Sin(th)*Cos(ph);
-        yN = 0.5+Sin(ph);
-        zN = Cos(th)*Cos(ph);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-
-        xN = Sin(th)*Cos(ph+d);
-        yN = 0.5+Sin(ph+d);
-        zN = Cos(th)*Cos(ph+d);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
+        VertexAdj(th,ph, 0,0.5,0, 1,1,1, 0.5,0.15,0.23);
+        VertexAdj(th,ph+d, 0,0.5,0, 1,1,1, 0.5,0.15,0.23);
         // saves the last vertices of the outer dome
         if(ph == 0){
           domeRim[i][0].x = Sin(th)*Cos(ph);
@@ -515,40 +525,25 @@ static void mushroom(double x,double y,double z,double r)
   int c = 0;
   for (int th=0;th<=360;th+=d)
   {
-    xN = 0.85*Sin(th)*Cos(90-d);
-    yN = -0.85+0.85*        Sin(90-d);
-    zN = 0.85*Cos(th)*Cos(90-d);
+    VertexAdj(th,90-d, 0,-0.85,0, 0.85,1,0, 0.95,0.92,0.8);
 
-    glColor3f(0.95,0.92,0.8);
-    glNormal3d(0,-1,0);
-    glVertex3d(xN,yN,zN);
-
-    stem[c].x = xN;
-    stem[c].y = yN;
-    stem[c].z = zN;
+    stem[c].x = 0.85*Sin(th)*Cos(90-d);
+    stem[c].y = -0.85+0.85*  Sin(90-d);
+    stem[c].z = 0.85*Cos(th)*Cos(90-d);
     c++;
   }
   glEnd();
 
-  //  inner Latitude bands
+  //  inner Latitude bands slighly smaller than the outer dome
+  glBindTexture(GL_TEXTURE_2D,texture[6]);
   for (int ph=90-2*d;ph>=(d-90)/6;ph-=d)
   {
      glBegin(GL_TRIANGLE_STRIP);
      int j = 0;
-     glColor3f(0.95,0.92,0.8);
      for (int th=0;th<=360;th+=d)
      {
-        xN = 0.85*Sin(th)*Cos(ph);
-        yN = 0.5+0.85*Sin(ph);
-        zN = 0.85*Cos(th)*Cos(ph);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
-
-        xN = 0.85*Sin(th)*Cos(ph+d);
-        yN = 0.5+0.85*Sin(ph+d);
-        zN = 0.85*Cos(th)*Cos(ph+d);
-        glNormal3d(xN,yN,zN);
-        glVertex3d(xN,yN,zN);
+        VertexAdj(th,ph, 0,0.5,0, 0.85,1,1, 0.95,0.92,0.8);
+        VertexAdj(th,ph+d, 0,0.5,0, 0.85,1,1, 0.95,0.92,0.8);
         // saves the last vertices of the inner dome
         if(ph == 0){
           domeRim[j][1].x = 0.85*Sin(th)*Cos(ph);
@@ -561,33 +556,38 @@ static void mushroom(double x,double y,double z,double r)
   }
 
   // bottem rim of dome
+  glBindTexture(GL_TEXTURE_2D,texture[6]);
   glBegin(GL_TRIANGLE_STRIP);
-  int g;
-  for(g=0; g<25; g++){
+  int rimRep = 0;
+  for(int g=0; g<25; g++){
     // uses the inner and outer vertices at the end of the domes to make the rim
     glColor3f(0.95,0.92,0.8);
     glNormal3d(0,-1,0);
-    glVertex3d(domeRim[g][0].x,domeRim[g][0].y,domeRim[g][0].z);
-    glVertex3d(domeRim[g][1].x,domeRim[g][1].y,domeRim[g][1].z);
+    glTexCoord2f(rimRep/360,0); glVertex3d(domeRim[g][0].x,domeRim[g][0].y,domeRim[g][0].z);
+    glTexCoord2f(rimRep/360,1); glVertex3d(domeRim[g][1].x,domeRim[g][1].y,domeRim[g][1].z);
+    rimRep+=15;
   }
   glEnd();
 
   // sides of stem
   glBegin(GL_TRIANGLE_STRIP);
-  for(g=0; g<25; g++){
+  for(int o=0; o<25; o++){
     glColor3f(0.95,0.92,0.9);
-    glNormal3d(stem[g].x,stem[g].y,stem[g].z);
-    glVertex3d(stem[g].x,stem[g].y,stem[g].z);
-    glNormal3d(stem[g].x,1.5+stem[g].y,stem[g].z);
-    glVertex3d(stem[g].x,1.5+stem[g].y,stem[g].z);
+    glNormal3d(stem[o].x,stem[o].y,stem[o].z);
+    glVertex3d(stem[o].x,stem[o].y,stem[o].z);
+    glNormal3d(stem[o].x,1.5+stem[o].y,stem[o].z);
+    glVertex3d(stem[o].x,1.5+stem[o].y,stem[o].z);
 
   }
   glEnd();
 
   //  Undo transformations
   glPopMatrix();
+  glDisable(GL_TEXTURE_2D);
 }
-
+/*
+!!Flower object!!
+*/
 static void flower(double x,double y,double z,double r)
 {
    vtx stemf[25][2];
@@ -603,7 +603,11 @@ static void flower(double x,double y,double z,double r)
    glTranslated(x,y,z);
    glScaled(r,r,r);
 
-   //  center of the flower
+   glEnable(GL_TEXTURE_2D);
+   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+   glBindTexture(GL_TEXTURE_2D,texture[5]);
+
+   //  center of the flower reused from ex8
    for (int ph=-90;ph<90;ph+=d)
    {
       glBegin(GL_QUAD_STRIP);
@@ -641,7 +645,7 @@ static void flower(double x,double y,double z,double r)
      yF = 1.59;
      zF = 2*Cos(th)*Cos(90-d);
 
-     glColor3f(map(x,0,60,0,1), map(y,0,60,0,1),map(z,0,60,0,1));
+     glColor3f(x+1/100, y/100,z/100);
      glNormal3d(xF,yF,zF);
      if(th%2 == 0){
        glVertex3d(xF,yF,zF);
@@ -650,7 +654,7 @@ static void flower(double x,double y,double z,double r)
    glEnd();
 
    int j = 0;
-   //bottom of the stem
+   //bottom of the stem reused from mushroom
    glBegin(GL_TRIANGLE_FAN);
    glColor3f(0.05, 0.45, 0.15);
    glNormal3d(0,-1,0);
@@ -671,7 +675,7 @@ static void flower(double x,double y,double z,double r)
    glEnd();
 
    j = 0;
-   //break point
+   //break point makes bend in the stem
    glBegin(GL_TRIANGLE_FAN);
    glColor3f(0.05, 0.45, 0.15);
    glNormal3d(0,-1,0);
@@ -684,6 +688,7 @@ static void flower(double x,double y,double z,double r)
      glColor3f(0.05, 0.45, 0.15);
      glNormal3d(xF,yF,zF);
      glVertex3d(xF,yF,zF);
+     //saves the points for the sides of the stem
      stemf[j][1].x = xF;
      stemf[j][1].y = yF;
      stemf[j][1].z = zF;
@@ -715,10 +720,10 @@ static void flower(double x,double y,double z,double r)
    glEnd();
    //  Undo transformations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
-
 /*
-!!Tree branch object!! add textures
+!!Tree branch object!!
 */
 static void treeBranch(double x,double y,double z,double rtop, double rbtm, double s, double h)
 {
@@ -736,6 +741,10 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
    //  Offset and scale
    glTranslated(x,h+y,z);
    glScaled(s,h,s);
+
+   glEnable(GL_TEXTURE_2D);
+   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+   glBindTexture(GL_TEXTURE_2D,texture[0]);
 
    //  South pole cap
    glBegin(GL_TRIANGLE_FAN);
@@ -786,27 +795,32 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
    glEnd();
 
    // creates the sides of the brach
+   double rep = 0;
+   double rep2 = 1;
    glBegin(GL_TRIANGLE_STRIP);
    for(int h=0;h<25;h++){
      glColor3f(0.5,0.35,0.2);
-     // uses the vertices from the outside of the top and bottom to make the triangle strip
+     // uses the vertices from the outside of the top and bottom caps to make the triangle strip for the sides
      glNormal3d(treeBrancht[h].x,treeBrancht[h].y,treeBrancht[h].z);
-     glVertex3d(treeBrancht[h].x,treeBrancht[h].y,treeBrancht[h].z);
+     glTexCoord2f(rep2,rep); glVertex3d(treeBrancht[h].x,treeBrancht[h].y,treeBrancht[h].z);
      glNormal3d(treeBranchb[h].x,treeBranchb[h].y,treeBranchb[h].z);
-     glVertex3d(treeBranchb[h].x,treeBranchb[h].y,treeBranchb[h].z);
+     glTexCoord2f(rep2,rep2); glVertex3d(treeBranchb[h].x,treeBranchb[h].y,treeBranchb[h].z);
+     rep = 1-rep;
+     rep2 = 1-rep2;
    }
    glEnd();
    //  Undo transformations
    glPopMatrix();
+   glDisable(GL_TEXTURE_2D);
 }
 
 /*
 !!Generates Trees using Recursion!! still needs work
 */
-float angle1 = 315;
+float angle1 = 315; //intial angles for tree branches to turn
 float angle2 = 45;
 
-void branch(float len, float stop, float sbtm, double x, double y, double z){
+static void branch(float len, float stop, float sbtm, double x, double y, double z){
   //root brach
   glPushMatrix();
   glTranslated(x,y,z);
@@ -815,7 +829,9 @@ void branch(float len, float stop, float sbtm, double x, double y, double z){
   // braches from root
   if(len>0.15){
     glPushMatrix();
+    //sets the new orgin at the top of the root
     glTranslated(x,len*2+y,z);
+    // piccks what axes to rotate around
     if(angle1 > 30){
       glRotated(angle1,1,1,0);
       glRotated(angle1,0,1,0);
@@ -824,13 +840,14 @@ void branch(float len, float stop, float sbtm, double x, double y, double z){
       glRotated(angle1,0,1,0);
     }
     //braches one way
+    // decrease the length and radius of the branch
     branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
     // draws a sphere for the leaves at the end of the braches
     if(len*0.67<0.15){
-      sphere(0,0,0, 0.9, 0.05, 0.45, 0.15);
+      sphere(0,0,0, 0.35, 0.2, 0.45, 0.15);
     }
-    glPopMatrix();
-
+    glPopMatrix(); // resets orgin to top of previous pranch
+    //makes the other branch
     glPushMatrix();
     glTranslated(x,len*2+y,z);
     if(angle2 < -22){
@@ -844,35 +861,41 @@ void branch(float len, float stop, float sbtm, double x, double y, double z){
     branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
     // draws a sphere for the leaves at the end of the braches
     if(len*0.67<0.15){
-      sphere(0,0,0, 0.75, 0.05, 0.45, 0.15);
+      sphere(0,0,0, 0.25, 0.05, 0.45, 0.15);
     }
     glPopMatrix();
   }
 
 }
 
-// make into class???
+// make into class!
+//intializes the number of things that are in the main scene
 int numTrees = 50;
 int numRocks = 50;
 int numMush = 75;
 int numFlow = 10;
+//holds the postion of the objects
 Point treePos[50];
 Point rockPos[50];
 Point mushPos[75];
 Point flowPos[10];
+//holds the seed for each rock
 float *rockSeed[50];
 
 void myInit(){
+  // the min and max point that can be used in a scene
   Point minT,maxT,outT;
   minT.x = 0;
   minT.y = 0;
   maxT.x = 60;
   maxT.y = 60;
+  //gets the tree postions
   for(int i = 0;i < numTrees;i++){
     outT = randomPoint(minT, maxT);
     treePos[i].x = outT.x;
     treePos[i].y = outT.y;
   }
+  //gets the rock potions and seeds
   for(int j = 0;j < numRocks;j++){
     outT = randomPoint(minT, maxT);
     rockPos[j].x = outT.x;
@@ -880,23 +903,26 @@ void myInit(){
     rockSeed[j] = rocks.getSeed();
     rocks.randSeed();
   }
+  //gets the mushroom postions
   for(int k = 0;k < numMush;k++){
     outT = randomPoint(minT, maxT);
     mushPos[k].x = outT.x;
     mushPos[k].y = outT.y;
   }
+  //gets the flower postions
   for(int l = 0;l < numFlow;l++){
     outT = randomPoint(minT, maxT);
     flowPos[l].x = outT.x;
     flowPos[l].y = outT.y;
   }
-
+  //sets the octaves so that the intial scene is not flat
   perlin.setOctaves(3);
   rocks.setOctaves(4);
 }
 
 void display()
 {
+  // gets the height for each point in the mesh using the noise functions
   perlin.noise2D(perlin.getOutputWSize(), perlin.getOutputHSize(), perlin.getSeed(), perlin.getOctaves(), perlin.getScalingBias(), perlin.getOutput());
   float *fPerlinNoise2D = perlin.getOutput();
   int h = 0;
@@ -940,7 +966,7 @@ void display()
      double Ey = +2*dim        *Sin(ph);
      double Ez = +2*dim*Cos(th)*Cos(ph);
 
-     gluLookAt(Ex,minMax[1]+Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0);
+     gluLookAt(Ex,minMax[1]+Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0); // will be at the same level as the heighest point of the terrain
   }
   //  Flat or smooth shading
   glShadeModel(smooth ? GL_SMOOTH : GL_FLAT);
@@ -1221,6 +1247,13 @@ int main(int argc,char* argv[])
    glutKeyboardFunc(key);
    glutIdleFunc(idle);
    //  Load textures
+   texture[0] = LoadTexBMP("bark.bmp");
+   texture[1] = LoadTexBMP("leaves.bmp");
+   texture[2] = LoadTexBMP("grass.bmp");
+   texture[3] = LoadTexBMP("water.bmp");
+   texture[4] = LoadTexBMP("rock.bmp");
+   texture[5] = LoadTexBMP("mushroomCap.bmp");
+   texture[6] = LoadTexBMP("bottomMushroom.bmp");
    myInit();
    //  Pass control to GLUT so it can interact with the user
    glutMainLoop();

@@ -8,6 +8,13 @@ just making the trees using the tree branch object and having another function b
 started to try and apply the L-system algorithm for making the trees. In addition, I also want to try and make the tree a single object that's not made up of other objects. As for
 what else still needs to be done, I still need to implement a better first person camera, I want to add fog to the scene, and lastly I want to try and implement reflections in the water.
 
+IMPORTANT THINGS TO LOOK AT THAT ARE WORKING:
+The Important things to look at right now are the objects in the main scene. In order to get to the main scene you just need to press 0 but it should be the first thing you see.
+When looking at the scene pressing c and d will affect how the terrain looks, pressing r will change the trees, and pressing x will generate a new seed for the terrain. Due to the
+fact I have not implemented the first person camera yet and it can be hard to see some of the objects you can view each object individually including just the terrain by pressing
+1 which shows the tree branch, 2 which shows the mushroom, 3 which shows the terrain, 4 which shows the rock, 5 which shows the tree, or 6 which shows the flower. While looking at
+the terrain and also the rock you can press c, d, or x to change how it looks.
+
 
 Approximate time it took to complete the assignment: ~20 hours
 
