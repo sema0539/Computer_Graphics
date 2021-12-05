@@ -16,7 +16,7 @@ noiseClass::noiseClass(int Width, int Height){
 }
 /*
 This function approximates perlin noise and is taken from https://github.com/OneLoneCoder/videos/blob/master/OneLoneCoder_PerlinNoise.cpp
-and I implemented it into this class
+but it is similar to the perline noise algorithm found on wikipedia and I implemented it into this class.
 */
 void noiseClass::noise2D(int nWidth, int nHeight, float *fSeed, int nOctaves, float fBias, float *fOutput)
 {

@@ -1,5 +1,5 @@
 # Example 9
-EXE=finalcpp
+EXE=final
 
 # Main target
 all: $(EXE)
@@ -25,16 +25,17 @@ CLEAN=rm -f $(EXE) *.o *.a
 endif
 
 # Dependencies
-final.o: final.c CSCIx229.h
+final.o: final.cpp CSCIx229.h
 fatal.o: fatal.c CSCIx229.h
 errcheck.o: errcheck.c CSCIx229.h
 print.o: print.c CSCIx229.h
 loadtexbmp.o: loadtexbmp.c CSCIx229.h
 loadobj.o: loadobj.c CSCIx229.h
 noiseClass.o: noiseClass.cpp CSCIx229.h
+mainScene.o: mainScene.cpp CSCIx229.h
 
 #  Create archive
-CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o noiseClass.o
+CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o noiseClass.o mainScene.o
 	ar -rcs $@ $^
 
 # Compile rules
@@ -44,7 +45,7 @@ CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o noiseC
 	g++ -c $(CFLG)  $<
 
 #  Link
-finalcpp:finalcpp.o     CSCIx229.a
+final:final.o     CSCIx229.a
 	g++ $(CFLG) -o $@ $^  $(LIBS)
 
 #  Clean

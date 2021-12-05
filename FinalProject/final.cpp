@@ -28,6 +28,7 @@
 #include <string>
 #include <random>
 #include "noiseClass.h"
+#include "mainScene.h"
 
 int axes=0;       //  Display axes
 int th=0;         //  Azimuth of view angle
@@ -77,23 +78,11 @@ typedef struct{float x,y,z;}vtx;
 //for generating noise to randomlly make terrian and rocks
 noiseClass perlin(row,col);
 noiseClass rocks(13,25);
+//get pos of all objects in main scene
+mainScene objPos(50,50,75,10,0,60);
+//holds the seed for each rock
+float *rockSeed[50];
 
-std::default_random_engine generator;
-
-typedef struct{
-  int x;
-  int y;
-}Point;
-
-//uniformally generates points for placing objects within an area
-Point randomPoint(Point min, Point max)
-{
-    static std::mt19937 gen;
-    std::uniform_int_distribution<> distribX(min.x, max.x);
-    std::uniform_int_distribution<> distribY(min.y, max.y);
-
-    return Point{distribX(gen), distribY(gen)};
-}
 //helps to map the noise function to numbers that are not between 0 and 1
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -120,24 +109,23 @@ float *findMinMax(float *arr){
     value[1] = max;
     return value;
 }
-
 //helper function for getting surface normal of a polygon bascially from ex13
-// static void get_surface_normal(vtx p1, vtx p2, vtx p3){
-//     //  Planar vector 0
-//     float dx0 = p1.x-p2.x;
-//     float dy0 = p1.y-p2.y;
-//     float dz0 = p1.z-p2.z;
-//     //  Planar vector 1
-//     float dx1 = p3.x-p1.x;
-//     float dy1 = p3.y-p1.y;
-//     float dz1 = p3.z-p1.z;
-//     //  Normal
-//     float Nx = dy0*dz1 - dy1*dz0;
-//     float Ny = dz0*dx1 - dz1*dx0;
-//     float Nz = dx0*dy1 - dx1*dy0;
-//
-//     glNormal3f(Nx,Ny,Nz);
-//  }
+static void get_surface_normal(vtx p1, vtx p2, vtx p3){
+    //  Planar vector 0
+    float dx0 = p1.x-p2.x;
+    float dy0 = p1.y-p2.y;
+    float dz0 = p1.z-p2.z;
+    //  Planar vector 1
+    float dx1 = p3.x-p1.x;
+    float dy1 = p3.y-p1.y;
+    float dz1 = p3.z-p1.z;
+    //  Normal
+    float Nx = dy0*dz1 - dy1*dz0;
+    float Ny = dz0*dx1 - dz1*dx0;
+    float Nz = dx0*dy1 - dx1*dy0;
+
+    glNormal3f(Nx,Ny,Nz);
+ }
 /*
 *  Set projection
 */
@@ -207,7 +195,7 @@ static void terrain(double x,double y,double z,
                   double dx,double dy,double dz,
                   double th, double waterLevel)
 {
-   // vtx vert[3];
+   vtx vert[4];
    //  Set specular color to white
    float white[] = {1,1,1,1};
    float black[] = {0,0,0,1};
@@ -233,28 +221,22 @@ static void terrain(double x,double y,double z,
      for(int j=0; j<col-1; j++){
        // !! work on Lighting !!
        // saves the vertices of the terrain to calulate the norms
-       // vert[0].x = j;
-       // vert[0].y = i;
-       // vert[0].z = t.hmap[j][i];
-       // vert[1].x = j;
-       // vert[1].y = i+1;
-       // vert[1].z = t.hmap[j][i+1];
-       // vert[2].x = j+1;
-       // vert[2].y = i;
-       // vert[2].z = t.hmap[j+1][i];
-       //sets the vertices of the terrain
-       // if(t.hmap[j][i] == t.hmap[j][i+1]){
-       //   glNormal3d(0,1,0);
-       // } else {
-       //   get_surface_normal(vert[0],vert[1],vert[2]);
-       // }
-       glNormal3d(0,1,0);
+       vert[0].x = j;
+       vert[0].y = t.hmap[j][i];
+       vert[0].z = i;
+       vert[1].x = j;
+       vert[1].y = t.hmap[j][i+1];
+       vert[1].z = i+1;
+       vert[2].x = j+1;
+       vert[2].y = t.hmap[j+1][i];
+       vert[2].z = i;
        // depending on the water level, the terrain is a different color will also hopefully apply to textures
        if(t.hmap[j][i] < waterLevel+0.2 && t.hmap[j][i+1]< waterLevel+0.3){
          glColor3f(0.65,0.55,0.5);
        } else {
          glColor3f(0.1, 0.45, 0.15);
        }
+       get_surface_normal(vert[0],vert[1],vert[2]);
        glTexCoord2f(i,j); glVertex3d(i,t.hmap[j][i],j);
        glTexCoord2f(i+1,j); glVertex3d(i+1,t.hmap[j][i+1],j);
      }
@@ -770,29 +752,37 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
    }
    glEnd();
 
-   //  North pole cap
-   glBegin(GL_TRIANGLE_FAN);
-   glColor3f(0.5,0.4,0.2);
-   glNormal3d(0,1,0);
-   glVertex3d(0,1.1,0);
-   int j = 0;
-   for (int th=0;th<=360;th+=d)
+   //  top cap
+   for (int ph=0;ph<90;ph+=d)
    {
-     xN = rtop*Sin(th)*Cos(90-d);
-     yN =         Sin(90-d);
-     zN = rtop*Cos(th)*Cos(90-d);
+      glBegin(GL_QUAD_STRIP);
+      int j = 0;
+      for (int th=0;th<=360;th+=d)
+      {
+         xN = rtop*Sin(th)*Cos(ph);
+         yN = 1+0.1*       Sin(ph);
+         zN = rtop*Cos(th)*Cos(ph);
 
-     glColor3f(0.5,0.4,0.2);
-     glNormal3d(xN,yN,zN);
-     glVertex3d(xN,yN,zN);
+         glColor3f(0.5,0.4,0.2);
+         glNormal3d(xN,yN,zN);
+         glVertex3d(xN,yN,zN);
 
-     // stores the vertices of the outside of the top cap
-     treeBrancht[j].x=xN;
-     treeBrancht[j].y=yN;
-     treeBrancht[j].z=zN;
-     j++;
+         xN = rtop*Sin(th)*Cos(ph+d);
+         yN = 1+0.1*       Sin(ph+d);
+         zN = rtop*Cos(th)*Cos(ph+d);
+
+         glColor3f(0.5,0.4,0.2);
+         glNormal3d(xN,yN,zN);
+         glVertex3d(xN,yN,zN);
+         if(ph==0){
+           treeBrancht[j].x=xN;
+           treeBrancht[j].y=yN;
+           treeBrancht[j].z=zN;
+         }
+         j++;
+      }
+      glEnd();
    }
-   glEnd();
 
    // creates the sides of the brach
    double rep = 0;
@@ -841,7 +831,7 @@ static void branch(float len, float stop, float sbtm, double x, double y, double
     }
     //braches one way
     // decrease the length and radius of the branch
-    branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
+    branch(len*0.67, stop*0.75, sbtm*0.67 ,0,0,0);
     // draws a sphere for the leaves at the end of the braches
     if(len*0.67<0.15){
       sphere(0,0,0, 0.35, 0.2, 0.45, 0.15);
@@ -858,7 +848,7 @@ static void branch(float len, float stop, float sbtm, double x, double y, double
       glRotated(angle1,0,1,0);
     }
     //braches the other way
-    branch(len*0.67, stop*0.75, sbtm*0.75 ,0,0,0);
+    branch(len*0.67, stop*0.75, sbtm*0.67 ,0,0,0);
     // draws a sphere for the leaves at the end of the braches
     if(len*0.67<0.15){
       sphere(0,0,0, 0.25, 0.05, 0.45, 0.15);
@@ -868,52 +858,11 @@ static void branch(float len, float stop, float sbtm, double x, double y, double
 
 }
 
-// make into class!
-//intializes the number of things that are in the main scene
-int numTrees = 50;
-int numRocks = 50;
-int numMush = 75;
-int numFlow = 10;
-//holds the postion of the objects
-Point treePos[50];
-Point rockPos[50];
-Point mushPos[75];
-Point flowPos[10];
-//holds the seed for each rock
-float *rockSeed[50];
-
-void myInit(){
-  // the min and max point that can be used in a scene
-  Point minT,maxT,outT;
-  minT.x = 0;
-  minT.y = 0;
-  maxT.x = 60;
-  maxT.y = 60;
-  //gets the tree postions
-  for(int i = 0;i < numTrees;i++){
-    outT = randomPoint(minT, maxT);
-    treePos[i].x = outT.x;
-    treePos[i].y = outT.y;
-  }
-  //gets the rock potions and seeds
-  for(int j = 0;j < numRocks;j++){
-    outT = randomPoint(minT, maxT);
-    rockPos[j].x = outT.x;
-    rockPos[j].y = outT.y;
+void myInit() {
+  //gets the rock seeds
+  for(int j = 0;j < objPos.getNumRocks();j++){
     rockSeed[j] = rocks.getSeed();
     rocks.randSeed();
-  }
-  //gets the mushroom postions
-  for(int k = 0;k < numMush;k++){
-    outT = randomPoint(minT, maxT);
-    mushPos[k].x = outT.x;
-    mushPos[k].y = outT.y;
-  }
-  //gets the flower postions
-  for(int l = 0;l < numFlow;l++){
-    outT = randomPoint(minT, maxT);
-    flowPos[l].x = outT.x;
-    flowPos[l].y = outT.y;
   }
   //sets the octaves so that the intial scene is not flat
   perlin.setOctaves(3);
@@ -922,7 +871,7 @@ void myInit(){
 
 static void draw(float waterLevel){
   if(object == 1){
-    treeBranch(0,0,0, 0.25,0.45, 1,1);
+    treeBranch(0,0,0, 0.05,0.45, 1,1);
   }
   else if(object == 2){
     mushroom(0,0,0,1);
@@ -934,36 +883,40 @@ static void draw(float waterLevel){
     rock(0,0,0 ,1, rocks.getSeed());
   }
   else if(object == 5){
-    branch(1, 0.25, 0.45 ,0,0,0);
+    branch(1, 0.075, 0.45 ,0,0,0);
   }
   else if(object == 6){
     flower(0,0,0,1);
   }
   // main scene
   else {
+    Point *treePos = objPos.getTreePos();
+    Point *rockPos = objPos.getRockPos();
+    Point *mushPos = objPos.getMushPos();
+    Point *flowPos = objPos.getFlowPos();
     terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0, waterLevel);
     water((col/2)*-1,waterLevel,row/2*-1, 1,1,1 , 0);
     //loop that places all the trees
-    for(int i = 0;i < numTrees;i++){
+    for(int i = 0;i < objPos.getNumTrees();i++){
        if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5){ //only places trees if they are high enough above the waterlevel
-          branch(0.5, 0.25, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
+          branch(0.5, 0.075, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
        }
     }
     //loop that places all the rocks
-    for(int j = 0;j < numRocks;j++){
+    for(int j = 0;j < objPos.getNumRocks();j++){
        if(t.hmap[rockPos[j].x][rockPos[j].y]>waterLevel+0.5){
           rock((col/2*-1)+rockPos[j].y,t.hmap[rockPos[j].x][rockPos[j].y],(row/2*-1)+rockPos[j].x, 0.75, rockSeed[j]);
        }
     }
     //loop that places all of the mushrooms
-    for(int k = 0;k < numMush;k++){
+    for(int k = 0;k < objPos.getNumMush();k++){
        if(t.hmap[mushPos[k].x][mushPos[k].y]>waterLevel+0.5){
           mushroom((col/2*-1)+mushPos[k].y,t.hmap[mushPos[k].x][mushPos[k].y],(row/2*-1)+mushPos[k].x, 0.15);
        }
 
     }
     //loop that places all of the Flowers
-    for(int l = 0;l < numFlow;l++){
+    for(int l = 0;l < objPos.getNumFlow();l++){
        if(t.hmap[flowPos[l].x][flowPos[l].y]>waterLevel+0.5){
           flower((col/2*-1)+flowPos[l].y,t.hmap[flowPos[l].x][flowPos[l].y],(row/2*-1)+flowPos[l].x, 0.15);
        }
@@ -979,7 +932,7 @@ void display()
   int h = 0;
   for(int i=0; i<row;i++){
     for(int j=0; j<col; j++){
-       // saves the values for the hight of the terrian using Perlin noise
+       // saves the values for the height of the terrian using Perlin noise
        t.hmap[j][i] = map(fPerlinNoise2D[h],0,1,0,10);
        h++;
     }
@@ -1004,21 +957,16 @@ void display()
      glRotatef(ph,1,0,0);
      glRotatef(th,0,1,0);
   }
-  else if((mode==1 && object!=0) && (mode==1 && object!=3)){
+  else if(mode==1){
      //  Eye position
      double Ex = -2*dim*Sin(th)*Cos(ph);
      double Ey = +2*dim        *Sin(ph);
      double Ez = +2*dim*Cos(th)*Cos(ph);
 
-     gluLookAt(Ex,Ey,Ez , Ox,Oy,Oz , 0,1,0);
-  }
-  else if(mode == 1 && (object == 0 || object == 3)){
-     //  Eye position
-     double Ex = -2*dim*Sin(th)*Cos(ph);
-     double Ey = +2*dim        *Sin(ph);
-     double Ez = +2*dim*Cos(th)*Cos(ph);
-
-     gluLookAt(Ex,minMax[1]+Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0); // will be at the same level as the heighest point of the terrain
+     if(object == 0 || object == 3)
+       gluLookAt(Ex,minMax[1]+Ey,Ez , Ox,minMax[1]+Oy,Oz , 0,1,0); // makes sure the terrain is always in view when teraain is changed
+     else
+       gluLookAt(Ex,Ey,Ez , Ox,Oy,Oz , 0,1,0);
   }
   //first person
   else if (mode == 2 && object == 0) {
@@ -1139,9 +1087,6 @@ void special(int key,int x,int y)
   glutPostRedisplay();
 }
 
-/*
- *  GLUT calls this routine when a key is pressed
- */
 void key(unsigned char ch,int x,int y)
 {
    //  Exit on ESC

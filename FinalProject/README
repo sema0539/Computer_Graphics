@@ -13,22 +13,22 @@ The Important things to look at right now are the objects in the main scene. In 
 When looking at the scene pressing c and d will affect how the terrain looks, pressing r will change the trees, and pressing x will generate a new seed for the terrain. Due to the
 fact I have not implemented the first person camera yet and it can be hard to see some of the objects you can view each object individually including just the terrain by pressing
 1 which shows the tree branch, 2 which shows the mushroom, 3 which shows the terrain, 4 which shows the rock, 5 which shows the tree, or 6 which shows the flower. While looking at
-the terrain and also the rock you can press c, d, or x to change how it looks.
+the terrain and also the rock you can press c, v, or x to change how it looks.
 
 
 Approximate time it took to complete the assignment: ~20 hours
 
 Key bindings
   Esc           Exits the program.
-  a             Toggles axis.
+  z             Toggles axis.
   c             Increments the octaves by one for the terrain or rocks depending on what object is being viewed.
-  d             Increments the scaling bias which effects how independent each point is.
+  v             Increments the scaling bias which effects how independent each point is.
   x             Creates a new seed for the terrain or rocks and resets the octaves.
   r             Changes the trees.
   f/F           changes the fov.
   l/L           Toggles the light
   m/M           Changes between perspective and orthogonal projections
-  w/W           Toggles the wireframe.
+  i/I           Toggles the wireframe.
   0             Shows the main scene.
   1             Shows the simple tree branch.
   2             Shows the mushroom.
@@ -38,3 +38,4 @@ Key bindings
   6             Shows the flower
   +/-           increases/decreases the dim.
   arrow keys    Control the camera.
+  w/a/s/d       Move camera while in first person
