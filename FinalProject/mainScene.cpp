@@ -5,7 +5,7 @@
 #include <string>
 #include <random>
 
-mainScene::mainScene(int nTrees, int nRocks, int nMush, int nFlow, int min, int max){
+mainScene::mainScene(int nTrees, int nRocks, int nMush, int nFlow, int nPine, int min, int max){
    minT.x = min;
    minT.y = min;
    maxT.x = max;
@@ -14,10 +14,12 @@ mainScene::mainScene(int nTrees, int nRocks, int nMush, int nFlow, int min, int 
    numRocks = nRocks;
    numMush = nMush;
    numFlow = nFlow;
+   numPine = nPine;
    treePos = new Point[numTrees];
    rockPos = new Point[numRocks];
    mushPos = new Point[numMush];
    flowPos = new Point[numFlow];
+   pinePos = new Point[numPine];
    Point outT;
    //gets the tree postions
    for(int i = 0;i < numTrees;i++){
@@ -43,12 +45,19 @@ mainScene::mainScene(int nTrees, int nRocks, int nMush, int nFlow, int min, int 
      flowPos[l].x = outT.x;
      flowPos[l].y = outT.y;
    }
+   //gets the Pine tree postions
+   for(int l = 0;l < numPine;l++){
+     outT = randomPoint(minT, maxT);
+     pinePos[l].x = outT.x;
+     pinePos[l].y = outT.y;
+   }
 }
 mainScene::~mainScene(){
   delete[] treePos;
   delete[] rockPos;
   delete[] mushPos;
   delete[] flowPos;
+  delete[] pinePos;
 }
 // uniformally distributs points on the terrain
 Point mainScene::randomPoint(Point min, Point max){
@@ -62,7 +71,9 @@ Point *mainScene::getTreePos(){return treePos;}
 Point *mainScene::getRockPos(){return rockPos;}
 Point *mainScene::getMushPos(){return mushPos;}
 Point *mainScene::getFlowPos(){return flowPos;}
+Point *mainScene::getPinePos(){return pinePos;}
 int mainScene::getNumTrees(){return numTrees;}
 int mainScene::getNumRocks(){return numRocks;}
 int mainScene::getNumMush(){return numMush;}
 int mainScene::getNumFlow(){return numFlow;}
+int mainScene::getNumPine(){return numFlow;}

@@ -52,6 +52,14 @@
 extern "C" {
 #endif
 
+//vertex struct
+typedef struct{float x,y,z;}vtx;
+
+typedef struct{
+  int x;
+  int y;
+}Point;
+
 void Print(const char* format , ...);
 void Fatal(const char* format , ...);
 unsigned int LoadTexBMP(const char* file);

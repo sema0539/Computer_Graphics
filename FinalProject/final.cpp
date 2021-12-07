@@ -9,6 +9,7 @@
 //   l/L           Toggles the light
 //   m/M           Changes between perspective and orthogonal projections
 //   i/I           Toggles the wireframe.
+//   q/Q           Increases and decreses the fog density
 //   0             Shows the main scene.
 //   1             Shows the simple tree branch.
 //   2             Shows the mushroom.
@@ -16,6 +17,7 @@
 //   4             Shows the rocks.
 //   5             Shows the tree.
 //   6             Shows the flower
+//   7             Shows the Pine Tree
 //   +/-           increases/decreases the dim.
 //   arrow keys    Control the camera.
 //   w/a/s/d       Move camera while in first person
@@ -29,12 +31,13 @@
 #include <random>
 #include "noiseClass.h"
 #include "mainScene.h"
+#include "LSysTrees.h"
 
 int axes=0;       //  Display axes
 int th=0;         //  Azimuth of view angle
 int mode=1;
-int wireframe = 0;
-int object = 0;
+int wireframe=0;
+int object = 0;   //  display different objects
 int move=1;       //  Move light
 int ph=15;        //  Elevation of view angle
 int fov=60;       //  Field of view (for perspective)
@@ -43,19 +46,15 @@ double dim=6.0;   //  Size of world
 double Ox=0,Oy=0,Oz=0; //  LookAt Location
 // Light values from ex13
 int light     =   1;  // Lighting
-int one       =   1;  // Unit value
-int distance  =  20;  // Light distance
-int inc       =   1;  // Ball increment
-int local     =   0;  // Local Viewer Model
+int distance  =  30;  // Light distance
 int emission  =   0;  // Emission intensity (%)
 int ambient   =  25;  // Ambient intensity (%)
 int diffuse   =  50;  // Diffuse intensity (%)
 int specular  =   0;  // Specular intensity (%)
-int shininess =   0;  // Shininess (power of two)
 float shiny   =   1;  // Shininess (value)
 int zh        =   0;  // Light azimuth
-float ylight  =   0;  // Elevation of light
-unsigned int texture[7];
+float density = 0.05;
+unsigned int texture[8];
 // tracks the postion of the camera
 double fpx = 0;
 double fpy = 0;
@@ -68,18 +67,19 @@ double Cy = 0;
 int row = 64;
 int col = 64;
 
-const char* text[] = {"???"};
+const char* modeText[] = {"Orthogonal", "Perspective", "FirstPerson"};
+const char* objText[] = {"Main Scene", "Tree Branch", "Mushroom", "Terrain", "Rocks", "Tree", "Flower", "Pine Tree"};
 
 //holds the values that are made from the noise function
 struct hmapStruct{float hmap[64][64];} t;
 struct rHmapStruct{float hmap[25][14];} rockP;
-//vertex struct
-typedef struct{float x,y,z;}vtx;
+
 //for generating noise to randomlly make terrian and rocks
 noiseClass perlin(row,col);
 noiseClass rocks(13,25);
 //get pos of all objects in main scene
-mainScene objPos(50,50,75,10,0,60);
+mainScene objPos(50,50,75,10,25,0,60);
+
 //holds the seed for each rock
 float *rockSeed[50];
 
@@ -185,9 +185,12 @@ static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos
   // to map texture if needed
   if(tex==1){
     glTexCoord2f(th/360,ph/180);
+  } else if(tex==2){ //alternate way to map texture to object
+    glTexCoord2f(th/45,ph/15);
   }
   glVertex3d(x,y,z);
 }
+
 /*
 !!Terrain object!!
 */
@@ -224,9 +227,9 @@ static void terrain(double x,double y,double z,
        vert[0].x = j;
        vert[0].y = t.hmap[j][i];
        vert[0].z = i;
-       vert[1].x = j;
-       vert[1].y = t.hmap[j][i+1];
-       vert[1].z = i+1;
+       vert[1].x = -j;
+       vert[1].y = -t.hmap[j][i+1];
+       vert[1].z = -i+1;
        vert[2].x = j+1;
        vert[2].y = t.hmap[j+1][i];
        vert[2].z = i;
@@ -464,6 +467,13 @@ static void mushroom(double x,double y,double z,double r)
   glTranslated(x,y,z);
   glScaled(r,r,r);
 
+  //  Set specular color to white
+  float white[] = {1,1,1,1};
+  float black[] = {0,0,0,1};
+  glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
+  glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+  glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+
   glEnable(GL_TEXTURE_2D);
   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
 
@@ -584,6 +594,13 @@ static void flower(double x,double y,double z,double r)
    //  Offset and scale
    glTranslated(x,y,z);
    glScaled(r,r,r);
+
+   //  Set specular color to white
+   float white[] = {1,1,1,1};
+   float black[] = {0,0,0,1};
+   glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
 
    glEnable(GL_TEXTURE_2D);
    glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
@@ -724,6 +741,13 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
    glTranslated(x,h+y,z);
    glScaled(s,h,s);
 
+   //  Set specular color to white
+   float white[] = {1,1,1,1};
+   float black[] = {0,0,0,1};
+   glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+
    glEnable(GL_TEXTURE_2D);
    glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
    glBindTexture(GL_TEXTURE_2D,texture[0]);
@@ -804,6 +828,136 @@ static void treeBranch(double x,double y,double z,double rtop, double rbtm, doub
    glDisable(GL_TEXTURE_2D);
 }
 
+static void tree2(double x,double y,double z, double r)
+{
+
+  const int d=15;
+
+  vtx trunk[25];
+
+  double xT;
+  double yT;
+  double zT;
+  //  Save transformation
+  glPushMatrix();
+  //  Offset and scale
+  glTranslated(x,y,z);
+  glScaled(r,r,r);
+
+  //  Set specular color to white
+  float white[] = {1,1,1,1};
+  float black[] = {0,0,0,1};
+  glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
+  glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
+  glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
+
+  glEnable(GL_TEXTURE_2D);
+  glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
+  glBindTexture(GL_TEXTURE_2D,texture[7]);
+
+  //  tree cap
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,2,0, 0.5,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,2,0, 0.35,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+  //  bottom of tree cap
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,1.5,0, 0.5,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,2,0, 0.35,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+
+  //  second level from the top
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,1.65,0, 0.5,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,1.65,0, 0.5,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,1.15,0, 0.5,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,1.65,0, 0.5,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+
+  //  third level from the top
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,1.25,0, 0.85,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,1,0, 0.85,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,0.5,0, 0.85,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,1,0, 0.85,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+
+  //  bottom level
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,0.5,0, 1.15,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,0.5,0, 1.15,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,0,0, 1.15,1,2, 0.2,0.52,0.3);
+  for (int th=0;th<=360;th+=d)
+  {
+     VertexAdj(th,0, 0,0.5,0, 1.15,1,2, 0.2,0.52,0.3);
+  }
+  glEnd();
+
+  //trunk
+  glBegin(GL_TRIANGLE_FAN);
+  VertexAdj(0,90, 0,-0.25,0, 0.15,1,0, 0.5,0.35,0.15);
+  int i=0;
+  for (int th=0;th<=360;th+=d)
+  {
+     xT = 0.15*Sin(th)*Cos(0);
+     yT = 0.15*        Sin(0);
+     zT = 0.15*Cos(th)*Cos(0);
+     glColor3f(0.5,0.35,0.15);
+     glNormal3d(xT,yT,zT);
+     glVertex3d(xT,yT,zT);
+     //saves the edges of the fan in order to make the sides of the trunk
+     trunk[i].x = xT;
+     trunk[i].y = yT;
+     trunk[i].z = zT;
+     i++;
+  }
+  glEnd();
+  //trunk sides
+  glBindTexture(GL_TEXTURE_2D,texture[0]);
+  int rep=0;
+  int rep2=1;
+  glBegin(GL_TRIANGLE_STRIP);
+  glColor3f(0.5,0.35,0.15);
+  for(int j=0;j<25;j++){
+     glNormal3d(trunk[j].x,trunk[j].y,trunk[j].z);
+     glTexCoord2f(rep2,rep); glVertex3d(trunk[j].x,trunk[j].y,trunk[j].z);
+     glNormal3d(trunk[j].x,trunk[j].y+1.15,trunk[j].z);
+     glTexCoord2f(rep2,rep2); glVertex3d(trunk[j].x,trunk[j].y+1.15,trunk[j].z);
+     rep = 1-rep;
+     rep2 = 1-rep2;
+  }
+  glEnd();
+
+  glDisable(GL_TEXTURE_2D);
+  glPopMatrix();
+}
 /*
 !!Generates Trees using Recursion!! still needs work
 */
@@ -836,7 +990,7 @@ static void branch(float len, float stop, float sbtm, double x, double y, double
     if(len*0.67<0.15){
       sphere(0,0,0, 0.35, 0.2, 0.45, 0.15);
     }
-    glPopMatrix(); // resets orgin to top of previous pranch
+    glPopMatrix(); // resets orgin to top of previous branch
     //makes the other branch
     glPushMatrix();
     glTranslated(x,len*2+y,z);
@@ -870,8 +1024,10 @@ void myInit() {
 }
 
 static void draw(float waterLevel){
+  LSysTrees thing(0.5, texture[0]);
   if(object == 1){
     treeBranch(0,0,0, 0.05,0.45, 1,1);
+    //thing.makeTree(0,0,0);
   }
   else if(object == 2){
     mushroom(0,0,0,1);
@@ -888,12 +1044,16 @@ static void draw(float waterLevel){
   else if(object == 6){
     flower(0,0,0,1);
   }
+  else if(object == 7){
+    tree2(0,0,0, 1);
+  }
   // main scene
   else {
     Point *treePos = objPos.getTreePos();
     Point *rockPos = objPos.getRockPos();
     Point *mushPos = objPos.getMushPos();
     Point *flowPos = objPos.getFlowPos();
+    Point *pinePos = objPos.getPinePos();
     terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0, waterLevel);
     water((col/2)*-1,waterLevel,row/2*-1, 1,1,1 , 0);
     //loop that places all the trees
@@ -921,11 +1081,18 @@ static void draw(float waterLevel){
           flower((col/2*-1)+flowPos[l].y,t.hmap[flowPos[l].x][flowPos[l].y],(row/2*-1)+flowPos[l].x, 0.15);
        }
     }
+    //loop that places all of the Flowers
+    for(int l = 0;l < objPos.getNumPine();l++){
+       if(t.hmap[pinePos[l].x][pinePos[l].y]>waterLevel+0.5){
+          tree2((col/2*-1)+pinePos[l].y,t.hmap[pinePos[l].x][pinePos[l].y],(row/2*-1)+pinePos[l].x, 0.85);
+       }
+    }
   }
 }
 
 void display()
 {
+  float fogColor[4] = {0.5, 0.5, 0.5, 1.0};
   // gets the height for each point in the mesh using the noise functions
   perlin.noise2D(perlin.getOutputWSize(), perlin.getOutputHSize(), perlin.getSeed(), perlin.getOctaves(), perlin.getScalingBias(), perlin.getOutput());
   float *fPerlinNoise2D = perlin.getOutput();
@@ -943,6 +1110,18 @@ void display()
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glEnable(GL_DEPTH_TEST);
+
+  // only enables fag in the main scene
+  if(object == 0){
+     glEnable (GL_FOG);
+     glFogi (GL_FOG_MODE, GL_EXP2);
+     glFogfv (GL_FOG_COLOR, fogColor);
+     glFogf (GL_FOG_DENSITY, density);
+     glHint (GL_FOG_HINT, GL_NICEST);
+  } else {
+     glDisable(GL_FOG);
+  }
+
   //enables and disables the wire frame
   if(wireframe == 0){
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
@@ -990,7 +1169,7 @@ void display()
      float setSpec = 0.01*specular;
      float Specular[]  = {setSpec,setSpec,setSpec,1.0};
      //  Light position
-     float Position[]  = {distance*Cos(zh),distance*Sin(zh),1.0,ylight};
+     float Position[]  = {distance*Cos(zh),distance*Sin(zh),1.0,0};
      //  Draw light position as ball (still no lighting here)
      glColor3f(1,1,1);
      sphere(Position[0],Position[1],Position[2] , 0.1, 1,1,1);
@@ -999,7 +1178,7 @@ void display()
      //  Enable lighting
      glEnable(GL_LIGHTING);
      //  Location of viewer for specular calculations
-     glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,local);
+     glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,0);
      //  glColor sets ambient and diffuse color materials
      glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
      glEnable(GL_COLOR_MATERIAL);
@@ -1014,12 +1193,11 @@ void display()
   else
      glDisable(GL_LIGHTING);
 
-  //the different objects
-  float waterLevel = minMax[1]/2;
+  float waterLevel = minMax[1]/2; // gets the water level based on the highest part of the terrian
   draw(waterLevel);
 
-
   glDisable(GL_LIGHTING);
+  glDisable(GL_FOG);
   //  Draw axes - no lighting from here on
   glColor3f(1,1,1);
   if (axes)
@@ -1043,7 +1221,7 @@ void display()
   }
   //  Display parameters
   glWindowPos2i(5,5);
-  Print("Angle=%d,%d  Dim=%.1f Fov=%d",th,ph,dim,fov);
+  Print("Angle=%d,%d  Dim=%.1f Fov=%d Mode=%s Object=%s",th,ph,dim,fov,modeText[mode],objText[object]);
 
   ErrCheck("display");
   glFlush();
@@ -1105,6 +1283,10 @@ void key(unsigned char ch,int x,int y)
        fov -= 1;
    else if (ch == 'F')
        fov += 1;
+   else if (ch == 'q')
+       density -= 0.01;
+   else if (ch == 'Q')
+       density += 0.01;
    // changes the tree
    else if (ch == 'r'){
      angle1 = 15+(rand()%75);
@@ -1155,6 +1337,11 @@ void key(unsigned char ch,int x,int y)
    }
    else if(ch == '6'){
      object = 6;
+     dim = 3.0;
+     mode = 1;
+   }
+   else if(ch == '7'){
+     object = 7;
      dim = 3.0;
      mode = 1;
    }
@@ -1238,7 +1425,7 @@ int main(int argc,char* argv[])
    if (glewInit()!=GLEW_OK) Fatal("Error initializing GLEW\n");
 #endif
    //  Set callbacks
-   glClearColor(0.0,0.0,0.0,0); //changes background color
+   glClearColor(0.1,0.4,0.6,0); //changes background color
    glutDisplayFunc(display);
    glutReshapeFunc(reshape);
    glutSpecialFunc(special);
@@ -1252,6 +1439,7 @@ int main(int argc,char* argv[])
    texture[4] = LoadTexBMP("rock.bmp");
    texture[5] = LoadTexBMP("mushroomCap.bmp");
    texture[6] = LoadTexBMP("bottomMushroom.bmp");
+   texture[7] = LoadTexBMP("pineTree.bmp");
    myInit();
    //  Pass control to GLUT so it can interact with the user
    glutMainLoop();
