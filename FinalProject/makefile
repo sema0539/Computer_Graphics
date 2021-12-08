@@ -33,10 +33,10 @@ loadtexbmp.o: loadtexbmp.c CSCIx229.h
 loadobj.o: loadobj.c CSCIx229.h
 noiseClass.o: noiseClass.cpp CSCIx229.h
 mainScene.o: mainScene.cpp CSCIx229.h
-LSysTrees.o: LSysTrees.cpp CSCIx229.h
+FractalTree.o: FractalTree.cpp CSCIx229.h
 
 #  Create archive
-CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o noiseClass.o mainScene.o LSysTrees.o
+CSCIx229.a:fatal.o errcheck.o print.o loadtexbmp.o loadobj.o projection.o noiseClass.o mainScene.o FractalTree.o
 	ar -rcs $@ $^
 
 # Compile rules

@@ -3,39 +3,40 @@ Final Project
 Sean Masucci
 CSCI4229/5229 Fall 2021
 
-Currently I have most of the objects made, but I am working on making a couple more. With that said, I am still struggling with how I want to make the trees. Currently, I am
-just making the trees using the tree branch object and having another function build the tree recursively using the tree branch, but I want to make the trees more interesting. So, I
-started to try and apply the L-system algorithm for making the trees. In addition, I also want to try and make the tree a single object that's not made up of other objects. As for
-what else still needs to be done, I still need to implement a better first person camera, I want to add fog to the scene, and lastly I want to try and implement reflections in the water.
+Currently I have 6 different objects made for the scene and another object made up of one of the other 6. This object is the tree and is made using recursion and seeds.
+In addition, I also made the terrain and rocks randomly generated using Perlin noise in order to get local coherence between points, and this helped to make these objects more
+natural looking. Then in the main scene it uses each of the objects I made and places them uniformly around the terrain. Finally I added fog and shadows to the main scene in
+order for it to look better.
 
-IMPORTANT THINGS TO LOOK AT THAT ARE WORKING:
-The Important things to look at right now are the objects in the main scene. In order to get to the main scene you just need to press 0 but it should be the first thing you see.
-When looking at the scene pressing c and d will affect how the terrain looks, pressing r will change the trees, and pressing x will generate a new seed for the terrain. Due to the
-fact I have not implemented the first person camera yet and it can be hard to see some of the objects you can view each object individually including just the terrain by pressing
-1 which shows the tree branch, 2 which shows the mushroom, 3 which shows the terrain, 4 which shows the rock, 5 which shows the tree, or 6 which shows the flower. While looking at
-the terrain and also the rock you can press c, v, or x to change how it looks.
-
+IMPORTANT THINGS TO LOOK AT/USE:
+When looking at the scene the user can press v to change the scaling bias of the terrain, c to change the octaves of the terrain, x to change the seed, and q/Q to change the fog density
+of the scene. Additionally, v, c, and x will work on the rocks too. Also, when viewing the main scene you can go into first person and move using the w,a,s, and d and the arrows to
+look different directions as well as using page_up and page_down to move up and down. Finally, if you press 5 you will be looking at the tree and when you press r it randomizes the tree.
 
 Approximate time it took to complete the assignment: ~20 hours
 
 Key bindings
-  Esc           Exits the program.
-  z             Toggles axis.
-  c             Increments the octaves by one for the terrain or rocks depending on what object is being viewed.
-  v             Increments the scaling bias which effects how independent each point is.
-  x             Creates a new seed for the terrain or rocks and resets the octaves.
-  r             Changes the trees.
-  f/F           changes the fov.
-  l/L           Toggles the light
-  m/M           Changes between perspective and orthogonal projections
-  i/I           Toggles the wireframe.
-  0             Shows the main scene.
-  1             Shows the simple tree branch.
-  2             Shows the mushroom.
-  3             Shows just the terrain.
-  4             Shows the rocks.
-  5             Shows the tree.
-  6             Shows the flower
-  +/-           increases/decreases the dim.
-  arrow keys    Control the camera.
-  w/a/s/d       Move camera while in first person
+   Esc           Exits the program.
+   z             Toggles axis.
+   c             Increments the octaves by one for the terrain or rocks depending on what object is being viewed.
+   v             Increments the scaling bias which effects how independent each point is.
+   x             Creates a new seed for the terrain or rocks and resets the octaves.
+   r             Changes the trees.
+   f/F           changes the fov.
+   l/L           Toggles the light
+   m/M           Changes between perspective and orthogonal projections
+   i/I           Toggles the wireframe.
+   q/Q           Increases and decreases the fog density
+   0             Shows the main scene.
+   1             Shows the simple tree branch.
+   2             Shows the mushroom.
+   3             Shows just the terrain.
+   4             Shows the rocks.
+   5             Shows the tree.
+   6             Shows the flower
+   7             Shows the Pine Tree
+   +/-           increases/decreases the dim.
+   arrow keys    Control the camera.
+   w/a/s/d       Move camera while in first person
+   page_up       Moves camera height up while in first person
+   page_down     Moves camera height down while in first person

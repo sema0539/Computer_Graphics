@@ -53,7 +53,7 @@ int diffuse   =  50;  // Diffuse intensity (%)
 int specular  =   0;  // Specular intensity (%)
 float shiny   =   1;  // Shininess (value)
 int zh        =   0;  // Light azimuth
-float density = 0.05;
+float density = 0.03;
 unsigned int texture[8];
 // tracks the postion of the camera
 double fpx = 0;
@@ -77,9 +77,10 @@ struct rHmapStruct{float hmap[25][14];} rockP;
 //for generating noise to randomlly make terrian and rocks
 noiseClass perlin(row,col);
 noiseClass rocks(13,25);
-//get pos of all objects in main scene
-mainScene objPos(50,50,75,10,25,0,60);
+//make random trees
 FractalTree *randTrees;
+//get pos of all objects in main scene
+mainScene objPos(40,50,75,10,25,0,60);
 
 //holds the seed for each rock
 float *rockSeed[50];
@@ -101,7 +102,7 @@ static void Vertex(double th,double ph, double r, double g, double b)
    glNormal3d(x,y,z);
    glVertex3d(x,y,z);
 }
-//this is the vertex function just with more customization
+// this is the vertex function just with more customization
 static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos, float scale, int flip, int tex,
   double r, double g, double b){
   double x;
@@ -127,11 +128,11 @@ static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos
   }
   glVertex3d(x,y,z);
 }
-//helps to map the noise function to numbers that are not between 0 and 1
+// helps to map the noise function to numbers that are not between 0 and 1
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-//finds the min and max height  of the terrian
+// finds the min and max height  of the terrian
 float *findMinMax(float *arr){
   float *value;
   value = new float[2];
@@ -153,7 +154,7 @@ float *findMinMax(float *arr){
     value[1] = max;
     return value;
 }
-//helper function for getting surface normal of a polygon bascially from ex13
+// helper function for getting surface normal of a polygon bascially from ex13
 static void get_surface_normal(vtx p1, vtx p2, vtx p3){
     //  Planar vector 0
     float dx0 = p1.x-p2.x;
@@ -720,7 +721,9 @@ static void flower(double x,double y,double z,double r)
    glPopMatrix();
    glDisable(GL_TEXTURE_2D);
 }
-
+/*
+!!Pine Tree object!!
+*/
 static void tree2(double x,double y,double z, double r)
 {
 
@@ -765,7 +768,7 @@ static void tree2(double x,double y,double z, double r)
   }
   glEnd();
 
-  //  second level from the top
+  //  second level of leaves from the top
   glBegin(GL_TRIANGLE_FAN);
   VertexAdj(0,90, 0,1.65,0, 0.5,1,2, 0.2,0.52,0.3);
   for (int th=0;th<=360;th+=d)
@@ -860,14 +863,15 @@ void myInit() {
   }
   randTrees = new FractalTree[objPos.getNumTrees()];
   //sets the octaves so that the intial scene is not flat
-  perlin.setOctaves(3);
+  perlin.setOctaves(5);
+  perlin.changeScalingBias();
   rocks.setOctaves(4);
 }
 
 static void draw(float waterLevel){
   if(object == 1){
-    //treeBranch(0,0,0, 0.05,0.45, 1,1);
-    randTrees[15].makeTree(0.5,0.075,0.45, 0,0,0);
+    // just draws the tree trunk used to make the trees
+    randTrees[0].root(0,0,0, 0.05,0.45, 1,1);
   }
   else if(object == 2){
     mushroom(0,0,0,1);
@@ -879,7 +883,8 @@ static void draw(float waterLevel){
     rock(0,0,0 ,1, rocks.getSeed());
   }
   else if(object == 5){
-    branch(1, 0.075, 0.45 ,0,0,0);
+    // draws a single tree
+    randTrees[0].makeTree(1, 0.075, 0.45 ,0,0,0);
   }
   else if(object == 6){
     flower(0,0,0,1);
@@ -899,7 +904,6 @@ static void draw(float waterLevel){
     //loop that places all the trees
     for(int i = 0;i < objPos.getNumTrees();i++){
        if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5){ //only places trees if they are high enough above the waterlevel
-          branch(0.5, 0.075, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
           randTrees[i].makeTree(0.5,0.075,0.45, (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
        }
     }
@@ -955,9 +959,9 @@ void display()
   // only enables fag in the main scene
   if(object == 0){
      glEnable (GL_FOG);
-     glFogi (GL_FOG_MODE, GL_EXP2);
-     glFogfv (GL_FOG_COLOR, fogColor);
-     glFogf (GL_FOG_DENSITY, density);
+     glFogi (GL_FOG_MODE, GL_EXP2); // sets the fog mode
+     glFogfv (GL_FOG_COLOR, fogColor); // sets the fog color
+     glFogf (GL_FOG_DENSITY, density); // sets desity which can be changed
      glHint (GL_FOG_HINT, GL_NICEST);
   } else {
      glDisable(GL_FOG);
@@ -1129,10 +1133,8 @@ void key(unsigned char ch,int x,int y)
    else if (ch == 'Q')
        density += 0.01;
    // changes the tree
-   else if (ch == 'r'){
-     angle1 = 15+(rand()%75);
-     angle2 = -(15+(rand()%45));
-   }
+   else if (ch == 'r')
+       randTrees[0].randVars();
    // toggles light
    else if(ch == 'l' || ch == 'L')
      light = 1-light;
@@ -1149,7 +1151,8 @@ void key(unsigned char ch,int x,int y)
    //shows the differnt objects made and the scene
    else if(ch == '0'){
       object = 0;
-      dim = 21;
+      dim = 10;
+      ph = 175;
    }
    else if(ch == '1'){
      object = 1;
