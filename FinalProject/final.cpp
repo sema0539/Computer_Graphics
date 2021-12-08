@@ -51,7 +51,7 @@ int emission  =   0;  // Emission intensity (%)
 int ambient   =  25;  // Ambient intensity (%)
 int diffuse   =  75;  // Diffuse intensity (%)
 int specular  =   0;  // Specular intensity (%)
-float shiny   =   1;  // Shininess (value)
+float shiny   =   2;  // Shininess (value)
 int zh        =   0;  // Light azimuth
 float density = 0.03;
 unsigned int texture[8];
@@ -80,7 +80,7 @@ noiseClass rocks(13,25);
 //makes random trees
 FractalTree *randTrees;
 //get pos of all objects in main scene
-mainScene objPos(40,50,75,10,25,0,60);
+mainScene objPos(40,50,75,25,25,0,60);
 
 //holds the seed for each rock
 float *rockSeed[50];
@@ -886,7 +886,7 @@ static void draw(float waterLevel){
     // draws a single tree
     randTrees[0].makeTree(1, 0.075, 0.45 ,0,0,0);
   else if(object == 6)
-    flower(0,0,0,1);
+    flower(0,0,0,1.5);
   else if(object == 7)
     tree2(0,0,0, 1);
   // main scene
