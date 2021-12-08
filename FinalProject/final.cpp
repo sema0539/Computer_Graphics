@@ -31,7 +31,7 @@
 #include <random>
 #include "noiseClass.h"
 #include "mainScene.h"
-#include "LSysTrees.h"
+#include "FractalTree.h"
 
 int axes=0;       //  Display axes
 int th=0;         //  Azimuth of view angle
@@ -79,10 +79,54 @@ noiseClass perlin(row,col);
 noiseClass rocks(13,25);
 //get pos of all objects in main scene
 mainScene objPos(50,50,75,10,25,0,60);
+FractalTree *randTrees;
 
 //holds the seed for each rock
 float *rockSeed[50];
+/*
+Draw vertex in polar coordinates with normal
+*/
+static void Vertex(double th,double ph, double r, double g, double b)
+{
+   if(r==1 && g==1 && b==1){
+     glColor3f(1,1,1);
+   }
+   else{
+     glColor3f(r+((Cos(th)*Cos(th))/30),g-((Sin(ph)*Sin(ph))/30),b+((Sin(th)*Sin(th))/30));
+   }
+   double x = Sin(th)*Cos(ph);
+   double y = Cos(th)*Cos(ph);
+   double z =         Sin(ph);
 
+   glNormal3d(x,y,z);
+   glVertex3d(x,y,z);
+}
+//this is the vertex function just with more customization
+static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos, float scale, int flip, int tex,
+  double r, double g, double b){
+  double x;
+  double y;
+  double z;
+  if(flip==0){
+     x = xPos+scale*Sin(th)*Cos(ph);
+     y = yPos+scale*Cos(th)*Cos(ph);
+     z = zPos+scale*        Sin(ph);
+
+  } else {
+     x = xPos+scale*Sin(th)*Cos(ph);
+     y = yPos+scale*        Sin(ph);
+     z = zPos+scale*Cos(th)*Cos(ph);
+  }
+  glColor3f(r,g,b);
+  glNormal3d(x,y,z);
+  // to map texture if needed
+  if(tex==1){
+    glTexCoord2f(th/360,ph/180);
+  } else if(tex==2){ //alternate way to map texture to object
+    glTexCoord2f(th/45,ph/15);
+  }
+  glVertex3d(x,y,z);
+}
 //helps to map the noise function to numbers that are not between 0 and 1
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -147,51 +191,6 @@ static void Project()
  glLoadIdentity();
 }
 /*
-Draw vertex in polar coordinates with normal
-*/
-static void Vertex(double th,double ph, double r, double g, double b)
-{
-   if(r==1 && g==1 && b==1){
-     glColor3f(1,1,1);
-   }
-   else{
-     glColor3f(r+((Cos(th)*Cos(th))/30),g-((Sin(ph)*Sin(ph))/30),b+((Sin(th)*Sin(th))/30));
-   }
-   double x = Sin(th)*Cos(ph);
-   double y = Cos(th)*Cos(ph);
-   double z =         Sin(ph);
-
-   glNormal3d(x,y,z);
-   glVertex3d(x,y,z);
-}
-//this is the vertex function just with more customization
-static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos, float scale, int flip, int tex,
-  double r, double g, double b){
-  double x;
-  double y;
-  double z;
-  if(flip==0){
-     x = xPos+scale*Sin(th)*Cos(ph);
-     y = yPos+scale*Cos(th)*Cos(ph);
-     z = zPos+scale*        Sin(ph);
-
-  } else {
-     x = xPos+scale*Sin(th)*Cos(ph);
-     y = yPos+scale*        Sin(ph);
-     z = zPos+scale*Cos(th)*Cos(ph);
-  }
-  glColor3f(r,g,b);
-  glNormal3d(x,y,z);
-  // to map texture if needed
-  if(tex==1){
-    glTexCoord2f(th/360,ph/180);
-  } else if(tex==2){ //alternate way to map texture to object
-    glTexCoord2f(th/45,ph/15);
-  }
-  glVertex3d(x,y,z);
-}
-
-/*
 !!Terrain object!!
 */
 static void terrain(double x,double y,double z,
@@ -252,7 +251,7 @@ static void terrain(double x,double y,double z,
    glDisable(GL_TEXTURE_2D);
 }
 /*
-!!water object!!
+!!Water object!!
 */
 static void water(double x,double y,double z,
                   double dx,double dy,double dz,
@@ -721,112 +720,6 @@ static void flower(double x,double y,double z,double r)
    glPopMatrix();
    glDisable(GL_TEXTURE_2D);
 }
-/*
-!!Tree branch object!!
-*/
-static void treeBranch(double x,double y,double z,double rtop, double rbtm, double s, double h)
-{
-   const int d=15;
-
-   double xN;
-   double yN;
-   double zN;
-
-   vtx treeBrancht[25];
-   vtx treeBranchb[25];
-
-   //  Save transformation
-   glPushMatrix();
-   //  Offset and scale
-   glTranslated(x,h+y,z);
-   glScaled(s,h,s);
-
-   //  Set specular color to white
-   float white[] = {1,1,1,1};
-   float black[] = {0,0,0,1};
-   glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shiny);
-   glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,white);
-   glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,black);
-
-   glEnable(GL_TEXTURE_2D);
-   glTexEnvi(GL_TEXTURE_ENV , GL_TEXTURE_ENV_MODE , GL_MODULATE);
-   glBindTexture(GL_TEXTURE_2D,texture[0]);
-
-   //  South pole cap
-   glBegin(GL_TRIANGLE_FAN);
-   glColor3f(0.5,0.35,0.15);
-   glNormal3d(0,-1,0);
-   glVertex3d(0,-1.05,0);
-   int i = 0;
-   for (int th=0;th<=360;th+=d)
-   {
-      xN = rbtm*Sin(th)*Cos(d-90);
-      yN =         Sin(d-90);
-      zN = rbtm*Cos(th)*Cos(d-90);
-
-      glColor3f(0.5,0.35,0.15);
-      glNormal3d(xN,yN,zN);
-      glVertex3d(xN,yN,zN);
-
-      // stores the vertices of the outside of the bottom cap
-      treeBranchb[i].x=xN;
-      treeBranchb[i].y=yN;
-      treeBranchb[i].z=zN;
-      i++;
-   }
-   glEnd();
-
-   //  top cap
-   for (int ph=0;ph<90;ph+=d)
-   {
-      glBegin(GL_QUAD_STRIP);
-      int j = 0;
-      for (int th=0;th<=360;th+=d)
-      {
-         xN = rtop*Sin(th)*Cos(ph);
-         yN = 1+0.1*       Sin(ph);
-         zN = rtop*Cos(th)*Cos(ph);
-
-         glColor3f(0.5,0.4,0.2);
-         glNormal3d(xN,yN,zN);
-         glVertex3d(xN,yN,zN);
-
-         xN = rtop*Sin(th)*Cos(ph+d);
-         yN = 1+0.1*       Sin(ph+d);
-         zN = rtop*Cos(th)*Cos(ph+d);
-
-         glColor3f(0.5,0.4,0.2);
-         glNormal3d(xN,yN,zN);
-         glVertex3d(xN,yN,zN);
-         if(ph==0){
-           treeBrancht[j].x=xN;
-           treeBrancht[j].y=yN;
-           treeBrancht[j].z=zN;
-         }
-         j++;
-      }
-      glEnd();
-   }
-
-   // creates the sides of the brach
-   double rep = 0;
-   double rep2 = 1;
-   glBegin(GL_TRIANGLE_STRIP);
-   for(int h=0;h<25;h++){
-     glColor3f(0.5,0.35,0.2);
-     // uses the vertices from the outside of the top and bottom caps to make the triangle strip for the sides
-     glNormal3d(treeBrancht[h].x,treeBrancht[h].y,treeBrancht[h].z);
-     glTexCoord2f(rep2,rep); glVertex3d(treeBrancht[h].x,treeBrancht[h].y,treeBrancht[h].z);
-     glNormal3d(treeBranchb[h].x,treeBranchb[h].y,treeBranchb[h].z);
-     glTexCoord2f(rep2,rep2); glVertex3d(treeBranchb[h].x,treeBranchb[h].y,treeBranchb[h].z);
-     rep = 1-rep;
-     rep2 = 1-rep2;
-   }
-   glEnd();
-   //  Undo transformations
-   glPopMatrix();
-   glDisable(GL_TEXTURE_2D);
-}
 
 static void tree2(double x,double y,double z, double r)
 {
@@ -958,59 +851,6 @@ static void tree2(double x,double y,double z, double r)
   glDisable(GL_TEXTURE_2D);
   glPopMatrix();
 }
-/*
-!!Generates Trees using Recursion!! still needs work
-*/
-float angle1 = 315; //intial angles for tree branches to turn
-float angle2 = 45;
-
-static void branch(float len, float stop, float sbtm, double x, double y, double z){
-  //root brach
-  glPushMatrix();
-  glTranslated(x,y,z);
-  treeBranch(0,0,0, stop,sbtm, 1,len);
-  glPopMatrix();
-  // braches from root
-  if(len>0.15){
-    glPushMatrix();
-    //sets the new orgin at the top of the root
-    glTranslated(x,len*2+y,z);
-    // piccks what axes to rotate around
-    if(angle1 > 30){
-      glRotated(angle1,1,1,0);
-      glRotated(angle1,0,1,0);
-    } else{
-      glRotated(angle1,0,1,1);
-      glRotated(angle1,0,1,0);
-    }
-    //braches one way
-    // decrease the length and radius of the branch
-    branch(len*0.67, stop*0.75, sbtm*0.67 ,0,0,0);
-    // draws a sphere for the leaves at the end of the braches
-    if(len*0.67<0.15){
-      sphere(0,0,0, 0.35, 0.2, 0.45, 0.15);
-    }
-    glPopMatrix(); // resets orgin to top of previous branch
-    //makes the other branch
-    glPushMatrix();
-    glTranslated(x,len*2+y,z);
-    if(angle2 < -22){
-      glRotated(angle2,1,1,1);
-      glRotated(angle1,0,1,0);
-    } else{
-      glRotated(angle2,1,0,1);
-      glRotated(angle1,0,1,0);
-    }
-    //braches the other way
-    branch(len*0.67, stop*0.75, sbtm*0.67 ,0,0,0);
-    // draws a sphere for the leaves at the end of the braches
-    if(len*0.67<0.15){
-      sphere(0,0,0, 0.25, 0.05, 0.45, 0.15);
-    }
-    glPopMatrix();
-  }
-
-}
 
 void myInit() {
   //gets the rock seeds
@@ -1018,16 +858,16 @@ void myInit() {
     rockSeed[j] = rocks.getSeed();
     rocks.randSeed();
   }
+  randTrees = new FractalTree[objPos.getNumTrees()];
   //sets the octaves so that the intial scene is not flat
   perlin.setOctaves(3);
   rocks.setOctaves(4);
 }
 
 static void draw(float waterLevel){
-  LSysTrees thing(0.5, texture[0]);
   if(object == 1){
-    treeBranch(0,0,0, 0.05,0.45, 1,1);
-    //thing.makeTree(0,0,0);
+    //treeBranch(0,0,0, 0.05,0.45, 1,1);
+    randTrees[15].makeTree(0.5,0.075,0.45, 0,0,0);
   }
   else if(object == 2){
     mushroom(0,0,0,1);
@@ -1060,6 +900,7 @@ static void draw(float waterLevel){
     for(int i = 0;i < objPos.getNumTrees();i++){
        if(t.hmap[treePos[i].x][treePos[i].y]>waterLevel+0.5){ //only places trees if they are high enough above the waterlevel
           branch(0.5, 0.075, 0.45 , (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
+          randTrees[i].makeTree(0.5,0.075,0.45, (col/2*-1)+treePos[i].y,t.hmap[treePos[i].x][treePos[i].y],(row/2*-1)+treePos[i].x);
        }
     }
     //loop that places all the rocks
