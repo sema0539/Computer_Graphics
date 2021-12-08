@@ -49,7 +49,7 @@ int light     =   1;  // Lighting
 int distance  =  30;  // Light distance
 int emission  =   0;  // Emission intensity (%)
 int ambient   =  25;  // Ambient intensity (%)
-int diffuse   =  50;  // Diffuse intensity (%)
+int diffuse   =  75;  // Diffuse intensity (%)
 int specular  =   0;  // Specular intensity (%)
 float shiny   =   1;  // Shininess (value)
 int zh        =   0;  // Light azimuth
@@ -77,16 +77,15 @@ struct rHmapStruct{float hmap[25][14];} rockP;
 //for generating noise to randomlly make terrian and rocks
 noiseClass perlin(row,col);
 noiseClass rocks(13,25);
-//make random trees
+//makes random trees
 FractalTree *randTrees;
 //get pos of all objects in main scene
 mainScene objPos(40,50,75,10,25,0,60);
 
 //holds the seed for each rock
 float *rockSeed[50];
-/*
-Draw vertex in polar coordinates with normal
-*/
+
+//basically from ex8
 static void Vertex(double th,double ph, double r, double g, double b)
 {
    if(r==1 && g==1 && b==1){
@@ -102,6 +101,7 @@ static void Vertex(double th,double ph, double r, double g, double b)
    glNormal3d(x,y,z);
    glVertex3d(x,y,z);
 }
+
 // this is the vertex function just with more customization
 static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos, float scale, int flip, int tex,
   double r, double g, double b){
@@ -128,10 +128,12 @@ static void VertexAdj(double th,double ph, double xPos, double yPos, double zPos
   }
   glVertex3d(x,y,z);
 }
+
 // helps to map the noise function to numbers that are not between 0 and 1
 float map(float x, float in_min, float in_max, float out_min, float out_max){
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
 // finds the min and max height  of the terrian
 float *findMinMax(float *arr){
   float *value;
@@ -154,6 +156,7 @@ float *findMinMax(float *arr){
     value[1] = max;
     return value;
 }
+
 // helper function for getting surface normal of a polygon bascially from ex13
 static void get_surface_normal(vtx p1, vtx p2, vtx p3){
     //  Planar vector 0
@@ -222,7 +225,6 @@ static void terrain(double x,double y,double z,
    for(int i=0; i<row;i++){
      glBegin(GL_TRIANGLE_STRIP);
      for(int j=0; j<col-1; j++){
-       // !! work on Lighting !!
        // saves the vertices of the terrain to calulate the norms
        vert[0].x = j;
        vert[0].y = t.hmap[j][i];
@@ -233,7 +235,7 @@ static void terrain(double x,double y,double z,
        vert[2].x = j+1;
        vert[2].y = t.hmap[j+1][i];
        vert[2].z = i;
-       // depending on the water level, the terrain is a different color will also hopefully apply to textures
+       // depending on the water level, the terrain is a different color
        if(t.hmap[j][i] < waterLevel+0.2 && t.hmap[j][i+1]< waterLevel+0.3){
          glColor3f(0.65,0.55,0.5);
        } else {
@@ -582,6 +584,7 @@ static void mushroom(double x,double y,double z,double r)
 */
 static void flower(double x,double y,double z,double r)
 {
+   //for makeing the stem
    vtx stemf[25][2];
 
    const int d=15;
@@ -866,32 +869,26 @@ void myInit() {
   perlin.setOctaves(5);
   perlin.changeScalingBias();
   rocks.setOctaves(4);
+  rocks.changeScalingBias();
 }
 
 static void draw(float waterLevel){
-  if(object == 1){
+  if(object == 1)
     // just draws the tree trunk used to make the trees
     randTrees[0].root(0,0,0, 0.05,0.45, 1,1);
-  }
-  else if(object == 2){
+  else if(object == 2)
     mushroom(0,0,0,1);
-  }
-  else if(object == 3) {
+  else if(object == 3)
     terrain((col/2)*-1,0,row/2*-1, 1,1,1 , 0, waterLevel);
-  }
-  else if(object == 4){
+  else if(object == 4)
     rock(0,0,0 ,1, rocks.getSeed());
-  }
-  else if(object == 5){
+  else if(object == 5)
     // draws a single tree
     randTrees[0].makeTree(1, 0.075, 0.45 ,0,0,0);
-  }
-  else if(object == 6){
+  else if(object == 6)
     flower(0,0,0,1);
-  }
-  else if(object == 7){
+  else if(object == 7)
     tree2(0,0,0, 1);
-  }
   // main scene
   else {
     Point *treePos = objPos.getTreePos();
@@ -938,7 +935,7 @@ static void draw(float waterLevel){
 void display()
 {
   float fogColor[4] = {0.5, 0.5, 0.5, 1.0};
-  // gets the height for each point in the mesh using the noise functions
+  // gets the height for each point in the terrain mesh using the noise functions
   perlin.noise2D(perlin.getOutputWSize(), perlin.getOutputHSize(), perlin.getSeed(), perlin.getOctaves(), perlin.getScalingBias(), perlin.getOutput());
   float *fPerlinNoise2D = perlin.getOutput();
   int h = 0;
@@ -951,12 +948,13 @@ void display()
   }
   // gets the minimum and max height of terrain
   float *minMax = findMinMax(fPerlinNoise2D);
+
   ///  Erase the window and the depth buffer
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
   glEnable(GL_DEPTH_TEST);
 
-  // only enables fag in the main scene
+  // only enables fog in the main scene
   if(object == 0){
      glEnable (GL_FOG);
      glFogi (GL_FOG_MODE, GL_EXP2); // sets the fog mode
@@ -1000,8 +998,6 @@ void display()
 
      gluLookAt(fpx,minMax[1]+Cy,fpz, Cx+fpx,Cy+fpy,Cz+fpz, 0,1,0); //  Use gluLookAt, y is the up-axis
   }
-  //  Flat or smooth shading
-  glShadeModel(GL_SMOOTH);
 
   //  Light switch from ex13
   if (light)
@@ -1096,6 +1092,7 @@ void special(int key,int x,int y)
   //  Down arrow key - decrease elevation by 5 degrees
   else if (key == GLUT_KEY_DOWN)
      ph -= 5;
+  // increases and decreases camera height
   else if (key == GLUT_KEY_PAGE_UP)
      Cy += 0.5;
   else if (key == GLUT_KEY_PAGE_DOWN)

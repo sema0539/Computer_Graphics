@@ -5,15 +5,16 @@ CSCI4229/5229 Fall 2021
 
 Currently I have 6 different objects made for the scene and another object made up of one of the other 6. This object is the tree and is made using recursion and seeds.
 In addition, I also made the terrain and rocks randomly generated using Perlin noise in order to get local coherence between points, and this helped to make these objects more
-natural looking. Then in the main scene it uses each of the objects I made and places them uniformly around the terrain. Finally I added fog and shadows to the main scene in
-order for it to look better.
+natural looking. Then in the main scene it uses each of the objects I made and places them uniformly around the terrain. Finally, I added fog to the main scene in
+order for it to look better. Also, I attempted to add shadows and reflections but was not able to get it working.
 
 IMPORTANT THINGS TO LOOK AT/USE:
 When looking at the scene the user can press v to change the scaling bias of the terrain, c to change the octaves of the terrain, x to change the seed, and q/Q to change the fog density
-of the scene. Additionally, v, c, and x will work on the rocks too. Also, when viewing the main scene you can go into first person and move using the w,a,s, and d and the arrows to
-look different directions as well as using page_up and page_down to move up and down. Finally, if you press 5 you will be looking at the tree and when you press r it randomizes the tree.
+of the main scene. Additionally, v, c, and x will work on the rocks too. Also, when viewing the main scene you can go into first person by pressing m and move using the w, a, s, and d, and
+the arrows to look different directions as well as using page_up and page_down to move up and down. Finally, if you press 5 you will be looking at a single tree and when you press r it
+randomizes the tree.
 
-Approximate time it took to complete the assignment: ~20 hours
+Approximate time it took to complete the assignment: ~36 hours
 
 Key bindings
    Esc           Exits the program.
