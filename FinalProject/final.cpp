@@ -886,7 +886,7 @@ static void draw(float waterLevel){
     // draws a single tree
     randTrees[0].makeTree(1, 0.075, 0.45 ,0,0,0);
   else if(object == 6)
-    flower(0,0,0,1.5);
+    flower(0,0,0,1);
   else if(object == 7)
     tree2(0,0,0, 1);
   // main scene
@@ -920,7 +920,7 @@ static void draw(float waterLevel){
     //loop that places all of the Flowers
     for(int l = 0;l < objPos.getNumFlow();l++){
        if(t.hmap[flowPos[l].x][flowPos[l].y]>waterLevel+0.5){
-          flower((col/2*-1)+flowPos[l].y,t.hmap[flowPos[l].x][flowPos[l].y],(row/2*-1)+flowPos[l].x, 0.15);
+          flower((col/2*-1)+flowPos[l].y,t.hmap[flowPos[l].x][flowPos[l].y],(row/2*-1)+flowPos[l].x, 0.25);
        }
     }
     //loop that places all of the Flowers
